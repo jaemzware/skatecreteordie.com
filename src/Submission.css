@@ -1,0 +1,68 @@
+#skateparkinputform {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+#skateparkinputform td {
+    padding: 12px;
+}
+
+#skateparkinputform label {
+    font-weight: bold;
+}
+
+#skateparkinputform input,
+#skateparkinputform select {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
+
+#skateparkinputform input:focus {
+    outline: none;
+    border-color: #333;
+}
+
+#mySubmit {
+    background-color: #4CAF50;
+    color: white;
+    padding: 12px 20px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+#mySubmit:hover {
+    background-color: #45a049;
+}
+
+/* Responsive layout */
+@media screen and (max-width: 600px) {
+
+    #skateparkinputform {
+        border: 0;
+    }
+
+    #skateparkinputform td {
+        display: block;
+        width: 100%;
+        text-align: left;
+        padding: 14px;
+    }
+
+    #skateparkinputform tr {
+        border-bottom: 1px solid #ccc;
+    }
+
+    #skateparkinputform input,
+    #skateparkinputform select {
+        width: 100%;
+        box-sizing: border-box;
+    }
+
+    #mySubmit {
+        width: 100%;
+    }
+
+}

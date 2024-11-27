@@ -1,0 +1,327 @@
+.lime-green{
+  color: lime;
+}
+
+.invisible-text {
+  color: white;
+}
+
+.App-logo {
+  height: 40vmin;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .App-logo {
+    animation: App-logo-spin infinite 20s linear;
+  }
+}
+
+.App {
+  width: 100%;
+  max-width: 100%;
+}
+
+.App-header {
+  background-color: #282c34;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: calc(10px + 2vmin);
+  color: white;
+}
+
+.App-link {
+  color: #61dafb;
+}
+
+@keyframes App-logo-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+body {
+}
+table {
+  text-align: center;
+}
+td{
+  text-align: left;
+  vertical-align: top;
+}
+td.skatepark{
+  text-align: left;
+  vertical-align: top;
+  border: 1px solid;
+}
+td.viddy{
+  text-align: center;
+  vertical-align: top;
+  width: 100%;
+}
+
+th {
+  text-align: left;
+  vertical-align: top;
+}
+
+span.statement{
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 20px;
+}
+
+span.parklisting{
+  text-align: left;
+  vertical-align: top;
+}
+
+input[type="text"] {
+  width: 100%;
+}
+
+/* Basic table styling */
+#skateparks {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+#skateparks th, #skateparks td {
+  border: 1px solid #ccc;
+  padding: 8px;
+  text-align: left;
+}
+
+#skateparkinputform {
+  text-align: left;
+}
+
+/* Responsive CSS using media queries */
+@media screen and (max-width: 600px) {
+  /* Adjust table layout for smaller screens */
+  #skateparks {
+    font-size: 14px;
+  }
+
+  #skateparks th, #skateparks td {
+    padding: 4px;
+  }
+}
+
+.responsive-image {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
+.welcome-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 20px;
+}
+
+.welcome-logo {
+  max-width: 100%;
+  height: auto;
+  margin-bottom: 20px;
+}
+
+.welcome-text {
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.welcome-text p {
+  margin-bottom: 20px;
+}
+
+/* Add these new styles to your existing CSS file */
+
+.map-info-container {
+  display: flex;
+  width: 100%;
+  height: calc(100vh - 60px); /* Adjust if you have a header or footer */
+}
+
+.map-container {
+  width: 70%; /* Changed from 80% to 70% */
+  height: 100%;
+  position: relative;
+}
+
+.info-panel {
+  width: 30%; /* Changed from 20% to 30% */
+  height: 100%;
+  overflow-y: auto;
+  padding: 10px;
+  background-color: #f0f0f0;
+}
+
+.current-location-btn {
+  position: absolute;
+  bottom: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1;
+  padding: 5px 10px;
+  background-color: #4CAF50;
+  color: white;
+  border: none;
+  cursor: pointer;
+}
+
+.photo-container {
+  margin-top: 20px;
+}
+
+.photo-item {
+  margin-bottom: 10px;
+}
+
+/* Mobile styles */
+@media (max-width: 768px) {
+  /* Define mobile styles here */
+  .map-container {
+    width: 100%; /* Make the map container full width on mobile */
+    height: 600px; /* Adjust the map height for mobile screens */
+  }
+
+  .map-info-container.mobile.portrait {
+    flex-direction: column;
+    height: 100vh;
+  }
+
+  .map-info-container.mobile.portrait .map-container {
+    width: 100%;
+    height: 70vh;
+  }
+
+  .map-info-container.mobile.portrait .info-panel {
+    width: 100%;
+    height: 30vh;
+  }
+
+  .map-info-container.mobile.landscape {
+    flex-direction: row;
+  }
+
+  .map-info-container.mobile.landscape .map-container {
+    width: 70%;
+    height: 100vh;
+  }
+
+  .map-info-container.mobile.landscape .info-panel {
+    width: 30%;
+    height: 100vh;
+  }
+
+  .map-info-container.mobile .current-location-btn {
+    bottom: 20px;
+    font-size: 14px;
+    padding: 8px 16px;
+  }
+
+  .map-info-container.mobile table {
+    font-size: 14px;
+  }
+
+  .map-info-container.mobile.portrait .photo-container {
+    display: flex;
+    overflow-x: auto;
+    margin-top: 10px;
+  }
+
+  .map-info-container.mobile.portrait .photo-item {
+    flex: 0 0 auto;
+    margin-right: 10px;
+    width: 150px;
+  }
+
+  .app-footer {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .app-footer nav {
+    margin-bottom: 10px;
+  }
+
+  .app-store-buttons {
+    align-self: flex-end;
+  }
+}
+
+.thumbnail-row {
+  display: flex;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+
+.thumbnail-link {
+  margin: 0 5px 5px 0;
+}
+
+.thumbnail-image {
+  width: 100px;
+  height: 100px;
+  object-fit: cover;
+  cursor: pointer;
+}
+
+@media screen and (max-width: 600px) {
+  .thumbnail-image {
+    width: 80px;
+    height: 80px;
+  }
+}
+
+/* Add these styles to your App.css file */
+.app-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 20px;
+  background-color: #f0f0f0;
+  flex-wrap: wrap;
+}
+
+.app-footer nav {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.app-footer nav a {
+  margin-right: 15px;
+  text-decoration: none;
+  color: #333;
+}
+
+.app-footer nav a:hover {
+  text-decoration: underline;
+}
+
+.app-store-buttons {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.app-store-button,
+.play-store-button {
+  display: inline-block;
+}
+
+.app-store-button img,
+.play-store-button img {
+  height: 40px;
+  width: auto;
+  max-width: 160px;
+}
