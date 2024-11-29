@@ -33,8 +33,8 @@ function MapComponent(props) {
         googleMapsApiKey: process.env.REACT_APP_GOOGLE_MAPS_API_KEY,
     });
     const initialCenter = {
-        lat: 39.8283,
-        lng: -98.5795,
+        lat: 47.6062,
+        lng: -122.3321,
     };
     const [markersArray, setMarkersArray] = useState([]);
     const [exactLocationHref, setExactLocationHref] = useState("https://skatecreteordie.com");
@@ -56,7 +56,7 @@ function MapComponent(props) {
 
     const [mapCenter, setMapCenter] = useState(initialCenter);
     const [currentLocation, setCurrentLocation] = useState(null);
-    const [zoomLevel, setZoomLevel] = useState(4);
+    const [zoomLevel, setZoomLevel] = useState(11);
     const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
     const [isPortrait, setIsPortrait] = useState(window.innerHeight > window.innerWidth);
     // Move containerStyle inside the component and use useMemo
@@ -280,7 +280,7 @@ function MapComponent(props) {
                     <tr><td><b>sqft</b></td><td>{sqft}</td></tr>
                     <tr><td><b>lights</b></td><td>{lights}</td></tr>
                     <tr><td><b>covered</b></td><td>{covered}</td></tr>
-                    <tr><td><b>url</b></td><td><a href={url}>{url}</a></td></tr>
+                    <tr><td><b>url</b></td><td><a target="_blank" href={url}>{url}</a></td></tr>
                     <tr><td><b>elements</b></td><td>{elements}</td></tr>
                     <tr><td><b>pinimage</b></td><td>{pinimage}</td></tr>
                     <tr><td><b>photos</b></td><td>{photos}</td></tr>
