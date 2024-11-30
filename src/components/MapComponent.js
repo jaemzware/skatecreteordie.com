@@ -41,7 +41,7 @@ const mapOptions = {
 
 const clusterOptions = {
     algorithm: 'clusters',
-    minimumClusterSize: 2,
+    minimumClusterSize: 4,
     averageCenter: true,
     zoomOnClick: true,
     gridSize: 60,
