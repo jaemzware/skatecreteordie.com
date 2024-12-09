@@ -4,6 +4,8 @@ import { useLoadScript, GoogleMap, MarkerF } from "@react-google-maps/api";
 import { MarkerClusterer } from '@react-google-maps/api';
 import artisanpin from '../images/artisanpin.png';
 import artisanlightspin from '../images/artisanpin.png';
+import dansparkpin from '../images/dansparkpin.png';
+import dansparklightspin from '../images/dansparklightspin.png';
 import diyparkpin from '../images/diyparkpin.png';
 import diyparklightspin from '../images/diyparklightspin.png';
 import dreamlandpin from '../images/dreamlandpin.png';
@@ -107,6 +109,12 @@ function MapComponent(props) {
         };
 
         switch (value.pinimage) {
+            case "dansparklightspin":
+                marker.icon = dansparklightspin;
+                break;
+            case "dansparkpin":
+                marker.icon = dansparkpin;
+                break;
             case "diyparklightspin":
                 marker.icon = diyparklightspin;
                 break;
