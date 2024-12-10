@@ -306,7 +306,7 @@ function MapComponent(props) {
                     <tr><td><b>Name</b></td><td><a href={`?parkId=${id}`}>{name}</a></td></tr>
                     <tr><td></td><td>
                         <a target="_blank" href={exactLocationHref}>DIRECTIONS</a> |
-                        <a target="_blank" href={url}>MORE INFO</a>
+                        <a target="_blank" href={url}>WEBSITE</a>
                     </td></tr>
                     <tr><td><b>address</b></td><td>{address}</td></tr>
                     <tr><td><b>id</b></td><td>{id}</td></tr>
