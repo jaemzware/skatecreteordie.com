@@ -75,10 +75,8 @@ const mapOptions = {
     mapTypeControl: true,
     streetViewControl: true,
     fullscreenControl: true,
-    // Add these options to reduce render load
     maxZoom: 21,
     minZoom: 3,
-    gestureHandling: 'greedy'
 };
 
 // Optimize cluster options
@@ -358,28 +356,9 @@ function MapComponent(props) {
                         </select>
                     </div>
                 </div>
-                <table>
-                    <tbody>
-                    <tr><td><b>Name</b></td><td><a href={`?parkId=${parkInfo.id}`}>{parkInfo.name}</a></td></tr>
-                    <tr><td>Links</td><td>
-                        <a target="_blank" rel="noopener noreferrer" href={parkInfo.exactLocationHref}>DIRECTIONS</a> |
-                        <a target="_blank" rel="noopener noreferrer" href={parkInfo.url}>WEBSITE</a>
-                    </td></tr>
-                    <tr><td><b>address</b></td><td>{parkInfo.address}</td></tr>
-                    <tr><td><b>id</b></td><td>{parkInfo.id}</td></tr>
-                    <tr><td><b>builder</b></td><td>{parkInfo.builder}</td></tr>
-                    <tr><td><b>sqft</b></td><td>{parkInfo.sqft}</td></tr>
-                    <tr><td><b>lights</b></td><td>{parkInfo.lights}</td></tr>
-                    <tr><td><b>covered</b></td><td>{parkInfo.covered}</td></tr>
-                    <tr><td><b>url</b></td><td><a target="_blank" rel="noopener noreferrer" href={parkInfo.url}>{parkInfo.url}</a></td></tr>
-                    <tr><td><b>elements</b></td><td>{parkInfo.elements}</td></tr>
-                    <tr><td><b>pinimage</b></td><td>{parkInfo.pinimage}</td></tr>
-                    <tr><td><b>photos</b></td><td>{parkInfo.photos}</td></tr>
-                    <tr><td><b>latitude</b></td><td>{parkInfo.latitude}</td></tr>
-                    <tr><td><b>longitude</b></td><td>{parkInfo.longitude}</td></tr>
-                    <tr><td><b>group</b></td><td>{parkInfo.group}</td></tr>
-                    </tbody>
-                </table>
+                <b><a href={`?parkId=${parkInfo.id}`}>{parkInfo.name}</a></b><br />
+                <a target="_blank" rel="noopener noreferrer" href={parkInfo.exactLocationHref}>{parkInfo.latitude}, {parkInfo.longitude}</a><br />
+                <a target="_blank" rel="noopener noreferrer" href={parkInfo.url}>{parkInfo.url}</a>
                 <div className="photo-container">
                     {parkInfo.photos.map((photo, index) => (
                         <div key={index} className="photo-item">
@@ -389,6 +368,20 @@ function MapComponent(props) {
                         </div>
                     ))}
                 </div>
+                <table>
+                    <tbody>
+                    <tr><td><b>id</b></td><td>{parkInfo.id}</td></tr>
+                    <tr><td><b>address</b></td><td>{parkInfo.address}</td></tr>
+                    <tr><td><b>builder</b></td><td>{parkInfo.builder}</td></tr>
+                    <tr><td><b>sqft</b></td><td>{parkInfo.sqft}</td></tr>
+                    <tr><td><b>lights</b></td><td>{parkInfo.lights}</td></tr>
+                    <tr><td><b>covered</b></td><td>{parkInfo.covered}</td></tr>
+                    <tr><td><b>elements</b></td><td>{parkInfo.elements}</td></tr>
+                    <tr><td><b>pinimage</b></td><td>{parkInfo.pinimage}</td></tr>
+                    <tr><td><b>photos</b></td><td>{parkInfo.photos}</td></tr>
+                    <tr><td><b>group</b></td><td>{parkInfo.group}</td></tr>
+                    </tbody>
+                </table>
             </div>
         </div>
     );
