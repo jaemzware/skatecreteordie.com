@@ -31,6 +31,42 @@ import teampainpin from '../images/teampainpin.png';
 import woodparklightspin from '../images/woodparklightspin.png';
 import woodparkpin from '../images/woodparkpin.png';
 
+// Create icon mapping function
+const getMarkerIcon = (pinimage) => {
+    const iconMap = {
+        dansparklightspin,
+        dansparkpin,
+        diyparklightspin,
+        diyparkpin,
+        dreamlandpin,
+        dreamlandlightspin,
+        evergreenlightspin,
+        evergreenpin,
+        fsrbetonlightspin,
+        fsrbetonpin,
+        grindlinelightspin,
+        grindlinepin,
+        newlinelightspin,
+        newlinepin,
+        othergoodparklightspin,
+        othergoodparkpin,
+        spohnranchlightspin,
+        spohnranchpin,
+        spotlightspin,
+        spotpin,
+        skateparklightspin,
+        skateparkpin,
+        teampainlightspin,
+        teampainpin,
+        woodparklightspin,
+        woodparkpin,
+        artisanlightspin,
+        artisanpin
+    };
+
+    return iconMap[pinimage] || othergoodparkpin;
+};
+
 // Define libraries array outside component to prevent reloading
 const libraries = ['geometry', 'drawing'];
 
@@ -39,14 +75,25 @@ const mapOptions = {
     mapTypeControl: true,
     streetViewControl: true,
     fullscreenControl: true,
+    // Add these options to reduce render load
+    maxZoom: 21,
+    minZoom: 3,
+    gestureHandling: 'greedy'
 };
 
+// Optimize cluster options
 const clusterOptions = {
     algorithm: 'clusters',
-    minimumClusterSize: 4,
+    minimumClusterSize: 5,
     averageCenter: true,
     zoomOnClick: true,
-    gridSize: 60,
+    gridSize: 60, // Reduced for better performance
+    maxZoom: 15,
+    enableRetinaIcons: true,
+    ignoreHidden: false,
+    // Add these options
+    batchSize: 100,
+    batchSizeIE: 100
 };
 
 function MapComponent(props) {
@@ -55,245 +102,144 @@ function MapComponent(props) {
         libraries
     });
 
-    const initialCenter = {
-        lat: 47.6062,
-        lng: -122.3321,
-    };
 
-    const [exactLocationHref, setExactLocationHref] = useState("https://skatecreteordie.com");
-    const [name, setName] = useState("Tap Map Pins for park data and photos");
-    const [address, setAddress] = useState("");
-    const [builder, setBuilder] = useState("");
-    const [id, setId] = useState("");
-    const [sqft, setSqft] = useState("");
-    const [lights, setLights] = useState("");
-    const [covered, setCovered] = useState("");
-    const [url, setUrl] = useState("");
-    const [elements, setElements] = useState("");
-    const [pinimage, setPinimage] = useState("");
-    const [photos, setPhotos] = useState([]);
-    const [latitude, setLatitude] = useState("");
-    const [longitude, setLongitude] = useState("");
-    const [group, setGroup] = useState("");
-    const [mapCenter, setMapCenter] = useState(initialCenter);
-    const [currentLocation, setCurrentLocation] = useState(null);
-    const [zoomLevel, setZoomLevel] = useState(11);
+    // Combine related state into a single object to reduce re-renders
+    const [parkInfo, setParkInfo] = useState({
+        exactLocationHref: "https://skatecreteordie.com",
+        name: "Tap Map Pins for park data and photos",
+        address: "",
+        builder: "",
+        id: "",
+        sqft: "",
+        lights: "",
+        covered: "",
+        url: "",
+        elements: "",
+        pinimage: "",
+        photos: [],
+        latitude: "",
+        longitude: "",
+        group: ""
+    });
+
     const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
     const [isPortrait, setIsPortrait] = useState(window.innerHeight > window.innerWidth);
     const [selectedPinFilter, setSelectedPinFilter] = useState('ALL');
-    const [isPinFilterChanging, setIsPinFilterChanging] = useState(false);
+    const [isMarkersLoading, setIsMarkersLoading] = useState(true);
 
-    // Extract unique pinimage values using useMemo
-    const uniquePinImages = useMemo(() => {
-        if (!props.fileListingArray) return [];
-        const pinImages = props.fileListingArray.map(item => item.pinimage);
-        return ['ALL', ...new Set(pinImages)].sort();
-    }, [props.fileListingArray]);
+    const showLoadingOverlay = (!isLoaded || !props.fileListingArray || isMarkersLoading);
+
+    const markersArray = useMemo(() => {
+        if (!props.fileListingArray) {
+            return [];
+        }
+
+        return props.fileListingArray
+            .filter(item => selectedPinFilter === 'ALL' || item.pinimage === selectedPinFilter)
+            .map(value => ({
+                lat: parseFloat(value.latitude),
+                lng: parseFloat(value.longitude),
+                title: value.name,
+                ...value,
+                icon: getMarkerIcon(value.pinimage)
+            }));
+    }, [props.fileListingArray, selectedPinFilter]);
+
+    const initialCenter = useMemo(() => ({
+        lat: 47.6062,
+        lng: -122.3321,
+    }), []);
 
     const containerStyle = useMemo(() => ({
         width: "100%",
         height: isMobile && isPortrait ? "70vh" : "calc(100vh - 60px)",
     }), [isMobile, isPortrait]);
 
-    const pinCounts = useMemo(() => {
-        if (!props.fileListingArray) return {};
+    // Memoize unique pin images and counts
+    const { uniquePinImages, pinCounts } = useMemo(() => {
+        if (!props.fileListingArray) {
+            return { uniquePinImages: [], pinCounts: {} };
+        }
 
-        // Initialize with ALL count
+        const pinImages = ['ALL', ...new Set(props.fileListingArray.map(item => item.pinimage))].sort();
         const counts = {
-            'ALL': props.fileListingArray.length
+            'ALL': props.fileListingArray.length,
+            ...props.fileListingArray.reduce((acc, item) => {
+                acc[item.pinimage] = (acc[item.pinimage] || 0) + 1;
+                return acc;
+            }, {})
         };
 
-        // Count occurrences of each pinimage
-        props.fileListingArray.forEach(item => {
-            counts[item.pinimage] = (counts[item.pinimage] || 0) + 1;
-        });
-
-        return counts;
+        return { uniquePinImages: pinImages, pinCounts: counts };
     }, [props.fileListingArray]);
 
-    const createMarker = useCallback((value) => {
-        let marker = {
-            lat: parseFloat(value.latitude),
-            lng: parseFloat(value.longitude),
-            title: value.name,
-            name: value.name,
-            address: value.address,
-            builder: value.builder,
-            id: value.id,
-            sqft: value.sqft,
-            lights: value.lights,
-            covered: value.covered,
-            url: value.url,
-            elements: value.elements,
-            pinimage: value.pinimage,
-            photos: value.photos.trim().split(" "),
-            latitude: value.latitude,
-            longitude: value.longitude,
-            group: value.group
-        };
+    const [mapState, setMapState] = useState({
+        center: initialCenter,
+        zoom: 11,
+        currentLocation: null
+    });
 
-        switch (value.pinimage) {
-            case "dansparklightspin":
-                marker.icon = dansparklightspin;
-                break;
-            case "dansparkpin":
-                marker.icon = dansparkpin;
-                break;
-            case "diyparklightspin":
-                marker.icon = diyparklightspin;
-                break;
-            case "diyparkpin":
-                marker.icon = diyparkpin;
-                break;
-            case "dreamlandpin":
-                marker.icon = dreamlandpin;
-                break;
-            case "dreamlandlightspin":
-                marker.icon = dreamlandlightspin;
-                break;
-            case "evergreenlightspin":
-                marker.icon = evergreenlightspin;
-                break;
-            case "evergreenpin":
-                marker.icon = evergreenpin;
-                break;
-            case "fsrbetonlightspin":
-                marker.icon = fsrbetonlightspin;
-                break;
-            case "fsrbetonpin":
-                marker.icon = fsrbetonpin;
-                break;
-            case "grindlinelightspin":
-                marker.icon = grindlinelightspin;
-                break;
-            case "grindlinepin":
-                marker.icon = grindlinepin;
-                break;
-            case "newlinelightspin":
-                marker.icon = newlinelightspin;
-                break;
-            case "newlinepin":
-                marker.icon = newlinepin;
-                break;
-            case "othergoodparklightspin":
-                marker.icon = othergoodparklightspin;
-                break;
-            case "othergoodparkpin":
-                marker.icon = othergoodparkpin;
-                break;
-            case "spohnranchlightspin":
-                marker.icon = spohnranchlightspin;
-                break;
-            case "spohnranchpin":
-                marker.icon = spohnranchpin;
-                break;
-            case "spotlightspin":
-                marker.icon = spotlightspin;
-                break;
-            case "spotpin":
-                marker.icon = spotpin;
-                break;
-            case "skateparklightspin":
-                marker.icon = skateparklightspin;
-                break;
-            case "skateparkpin":
-                marker.icon = skateparkpin;
-                break;
-            case "teampainlightspin":
-                marker.icon = teampainlightspin;
-                break;
-            case "teampainpin":
-                marker.icon = teampainpin;
-                break;
-            case "woodparklightspin":
-                marker.icon = woodparklightspin;
-                break;
-            case "woodparkpin":
-                marker.icon = woodparkpin;
-                break;
-            case "artisanlightspin":
-                marker.icon = artisanlightspin;
-                break;
-            case "artisanpin":
-                marker.icon = artisanpin;
-                break;
-            default:
-                marker.icon = othergoodparkpin;
-                console.log(`WARNING: unknown pin: ${value.pinimage}`);
-                break;
-        }
-        return marker;
-    }, []);
-
+    // Simplified marker click handler
     const handleMarkerClick = useCallback((marker) => {
-        setExactLocationHref("https://www.google.com/search?q=" + marker.lat + "%2C" + marker.lng);
-        setName(marker.name);
-        setAddress(marker.address);
-        setBuilder(marker.builder);
-        setId(marker.id);
-        setSqft(marker.sqft);
-        setLights(marker.lights);
-        setCovered(marker.covered);
-        setUrl(marker.url);
-        setElements(marker.elements);
-        setPinimage(marker.pinimage);
-        setPhotos(marker.photos);
-        setLatitude(marker.latitude);
-        setLongitude(marker.longitude);
-        setGroup(marker.group);
+        setParkInfo({
+            exactLocationHref: `https://www.google.com/search?q=${marker.lat}%2C${marker.lng}`,
+            name: marker.name,
+            address: marker.address,
+            builder: marker.builder,
+            id: marker.id,
+            sqft: marker.sqft,
+            lights: marker.lights,
+            covered: marker.covered,
+            url: marker.url,
+            elements: marker.elements,
+            pinimage: marker.pinimage,
+            photos: marker.photos.trim().split(" "),
+            latitude: marker.latitude,
+            longitude: marker.longitude,
+            group: marker.group
+        });
     }, []);
 
-    // Modify the dropdown onChange handler to handle the loading state
     const handlePinFilterChange = useCallback((e) => {
         const newValue = e.target.value;
-        setIsPinFilterChanging(true);
+        setSelectedPinFilter(newValue);
+    }, []);
 
-        // Small delay to let the UI update with loading state
-        setTimeout(() => {
-            setSelectedPinFilter(newValue);
+    const renderMarkers = useCallback((clusterer) => (
+        markersArray.map((marker, index) => (
+            <MarkerF
+                key={`${marker.id}-${index}`}
+                position={{ lat: marker.lat, lng: marker.lng }}
+                title={marker.title}
+                icon={marker.icon}
+                onClick={() => handleMarkerClick(marker)}
+                clusterer={clusterer}
+                options={{
+                    optimized: true, // Enable marker optimization
+                    visible: true
+                }}
+            />
+        ))
+    ), [markersArray, handleMarkerClick]);
 
-            // Longer delay for the loading state when going from many to few markers
-            const delay = pinCounts[newValue] < pinCounts[selectedPinFilter] ? 600 : 300;
+    const ClusteredMarkers = React.memo(({ clusterer }) => renderMarkers(clusterer))
 
-            setTimeout(() => {
-                setIsPinFilterChanging(false);
-            }, delay);
-        }, 10);
-    }, [pinCounts, selectedPinFilter]);
-
-    // Optimize marker creation and filtering using useMemo
-    const markersArray = useMemo(() => {
-        if (!props.fileListingArray) return [];
-
-        // Create and filter markers in a single pass
-        const markers = props.fileListingArray
-            .map(createMarker)
-            .filter(marker => selectedPinFilter === 'ALL' || marker.pinimage === selectedPinFilter);
-
-        // Handle selected park ID
-        if (props.selectedParkId) {
-            const selectedMarker = markers.find(marker => marker.id === props.selectedParkId);
-            if (selectedMarker) {
-                setMapCenter({ lat: selectedMarker.lat, lng: selectedMarker.lng });
-                setZoomLevel(21);
-                handleMarkerClick(selectedMarker);
-            }
-        }
-
-        return markers;
-    }, [props.fileListingArray, selectedPinFilter, props.selectedParkId, createMarker, handleMarkerClick]);
-
+    // Optimize geolocation handling
     useEffect(() => {
         if (navigator.geolocation) {
             navigator.geolocation.getCurrentPosition((position) => {
-                setCurrentLocation({
-                    lat: position.coords.latitude,
-                    lng: position.coords.longitude
-                });
+                setMapState(prev => ({
+                    ...prev,
+                    currentLocation: {
+                        lat: position.coords.latitude,
+                        lng: position.coords.longitude
+                    }
+                }));
             });
         }
     }, []);
 
+    // Optimize resize handler
     useEffect(() => {
         const handleResize = () => {
             setIsMobile(window.innerWidth <= 768);
@@ -304,52 +250,95 @@ function MapComponent(props) {
         return () => window.removeEventListener('resize', handleResize);
     }, []);
 
-    const centerMapOnCurrentLocation = useCallback(() => {
-        if (currentLocation) {
-            setZoomLevel(9);
-            setMapCenter(currentLocation);
+    // Handle selected park ID more efficiently
+    useEffect(() => {
+        if (props.selectedParkId && props.fileListingArray) {
+            const selectedPark = props.fileListingArray.find(item => item.id === props.selectedParkId);
+            if (selectedPark) {
+                setMapState(prev => ({
+                    ...prev,
+                    center: {
+                        lat: parseFloat(selectedPark.latitude),
+                        lng: parseFloat(selectedPark.longitude)
+                    },
+                    zoom: 21
+                }));
+                handleMarkerClick({
+                    ...selectedPark,
+                    lat: parseFloat(selectedPark.latitude),
+                    lng: parseFloat(selectedPark.longitude)
+                });
+            }
         }
-    }, [currentLocation]);
+    }, [props.selectedParkId, props.fileListingArray, handleMarkerClick]);
 
-    if (!isLoaded) return <div>Loading...</div>;
+    useEffect(() => {
+        setIsMarkersLoading(true);
+
+        const timer = setTimeout(() => {
+            setIsMarkersLoading(false);
+        }, 500); // Increased timeout to ensure visibility
+
+        return () => clearTimeout(timer);
+    }, [selectedPinFilter, props.fileListingArray]);
+
+    useEffect(() => {
+        console.log('Loading state changed:', {
+            isLoaded,
+            hasFileListingArray: !!props.fileListingArray,
+            isMarkersLoading,
+            filterValue: selectedPinFilter,
+            markerCount: markersArray.length
+        });
+    }, [isLoaded, props.fileListingArray, isMarkersLoading, selectedPinFilter, markersArray]);
+
+    const centerMapOnCurrentLocation = useCallback(() => {
+        if (mapState.currentLocation) {
+            setMapState(prev => ({
+                ...prev,
+                center: mapState.currentLocation,
+                zoom: 9
+            }));
+        }
+    }, [mapState.currentLocation]);
 
     return (
         <div className={`map-info-container ${isMobile ? 'mobile' : ''} ${isPortrait ? 'portrait' : 'landscape'}`}>
             <div className="map-container">
-                <GoogleMap
-                    mapContainerStyle={containerStyle}
-                    center={mapCenter}
-                    zoom={zoomLevel}
-                    options={mapOptions}
-                >
-                    {markersArray.length > 0 && (
-                        <MarkerClusterer options={clusterOptions}>
-                            {(clusterer) => (
-                                <>
-                                    {markersArray.map((marker, index) => (
-                                        <MarkerF
-                                            key={`${marker.lat}-${marker.lng}-${index}`}
-                                            position={{ lat: marker.lat, lng: marker.lng }}
-                                            title={marker.title}
-                                            icon={marker.icon}
-                                            onClick={() => handleMarkerClick(marker)}
-                                            clusterer={clusterer}
-                                        />
-                                    ))}
-                                </>
+                {showLoadingOverlay && (
+                    <div className="map-loading-overlay">
+                        <div className="map-loading-text">
+                            {!isLoaded ? "Loading Google Maps..." :
+                                !props.fileListingArray ? "Loading data..." :
+                                    "Loading markers..."}
+                        </div>
+                    </div>
+                )}
+                {isLoaded && (
+                    <>
+                        <GoogleMap
+                            mapContainerStyle={containerStyle}
+                            center={mapState.center}
+                            zoom={mapState.zoom}
+                            options={mapOptions}
+                        >
+                            {markersArray.length > 0 && (
+                                <MarkerClusterer options={clusterOptions}>
+                                    {(clusterer) => <ClusteredMarkers clusterer={clusterer} />}
+                                </MarkerClusterer>
                             )}
-                        </MarkerClusterer>
-                    )}
-                    {currentLocation && (
-                        <MarkerF
-                            position={currentLocation}
-                            title="Current Location"
-                        />
-                    )}
-                </GoogleMap>
-                <button onClick={centerMapOnCurrentLocation} className="current-location-btn">
-                    Current Location
-                </button>
+                            {mapState.currentLocation && (
+                                <MarkerF
+                                    position={mapState.currentLocation}
+                                    title="Current Location"
+                                />
+                            )}
+                        </GoogleMap>
+                        <button onClick={centerMapOnCurrentLocation} className="current-location-btn">
+                            Current Location
+                        </button>
+                    </>
+                )}
             </div>
             <div className="info-panel">
                 <div className="pin-filter">
@@ -360,7 +349,6 @@ function MapComponent(props) {
                             value={selectedPinFilter}
                             onChange={handlePinFilterChange}
                             className="pin-filter-select"
-                            disabled={isPinFilterChanging}
                         >
                             {uniquePinImages.map(pinType => (
                                 <option key={pinType} value={pinType}>
@@ -368,40 +356,34 @@ function MapComponent(props) {
                                 </option>
                             ))}
                         </select>
-                        {isPinFilterChanging && (
-                            <div className="filtering-indicator">
-                                <div className="spinner"></div>
-                                <span>Updating map...</span>
-                            </div>
-                        )}
                     </div>
                 </div>
                 <table>
                     <tbody>
-                    <tr><td><b>Name</b></td><td><a href={`?parkId=${id}`}>{name}</a></td></tr>
-                    <tr><td></td><td>
-                        <a target="_blank" href={exactLocationHref}>DIRECTIONS</a> |
-                        <a target="_blank" href={url}>WEBSITE</a>
+                    <tr><td><b>Name</b></td><td><a href={`?parkId=${parkInfo.id}`}>{parkInfo.name}</a></td></tr>
+                    <tr><td>Links</td><td>
+                        <a target="_blank" rel="noopener noreferrer" href={parkInfo.exactLocationHref}>DIRECTIONS</a> |
+                        <a target="_blank" rel="noopener noreferrer" href={parkInfo.url}>WEBSITE</a>
                     </td></tr>
-                    <tr><td><b>address</b></td><td>{address}</td></tr>
-                    <tr><td><b>id</b></td><td>{id}</td></tr>
-                    <tr><td><b>builder</b></td><td>{builder}</td></tr>
-                    <tr><td><b>sqft</b></td><td>{sqft}</td></tr>
-                    <tr><td><b>lights</b></td><td>{lights}</td></tr>
-                    <tr><td><b>covered</b></td><td>{covered}</td></tr>
-                    <tr><td><b>url</b></td><td><a target="_blank" href={url}>{url}</a></td></tr>
-                    <tr><td><b>elements</b></td><td>{elements}</td></tr>
-                    <tr><td><b>pinimage</b></td><td>{pinimage}</td></tr>
-                    <tr><td><b>photos</b></td><td>{photos}</td></tr>
-                    <tr><td><b>latitude</b></td><td>{latitude}</td></tr>
-                    <tr><td><b>longitude</b></td><td>{longitude}</td></tr>
-                    <tr><td><b>group</b></td><td>{group}</td></tr>
+                    <tr><td><b>address</b></td><td>{parkInfo.address}</td></tr>
+                    <tr><td><b>id</b></td><td>{parkInfo.id}</td></tr>
+                    <tr><td><b>builder</b></td><td>{parkInfo.builder}</td></tr>
+                    <tr><td><b>sqft</b></td><td>{parkInfo.sqft}</td></tr>
+                    <tr><td><b>lights</b></td><td>{parkInfo.lights}</td></tr>
+                    <tr><td><b>covered</b></td><td>{parkInfo.covered}</td></tr>
+                    <tr><td><b>url</b></td><td><a target="_blank" rel="noopener noreferrer" href={parkInfo.url}>{parkInfo.url}</a></td></tr>
+                    <tr><td><b>elements</b></td><td>{parkInfo.elements}</td></tr>
+                    <tr><td><b>pinimage</b></td><td>{parkInfo.pinimage}</td></tr>
+                    <tr><td><b>photos</b></td><td>{parkInfo.photos}</td></tr>
+                    <tr><td><b>latitude</b></td><td>{parkInfo.latitude}</td></tr>
+                    <tr><td><b>longitude</b></td><td>{parkInfo.longitude}</td></tr>
+                    <tr><td><b>group</b></td><td>{parkInfo.group}</td></tr>
                     </tbody>
                 </table>
                 <div className="photo-container">
-                    {photos.map((photo, index) => (
+                    {parkInfo.photos.map((photo, index) => (
                         <div key={index} className="photo-item">
-                            <a target="_blank" href={`${process.env.REACT_APP_IMAGE_SERVER_URL}${photo}`}>
+                            <a target="_blank" rel="noopener noreferrer" href={`${process.env.REACT_APP_IMAGE_SERVER_URL}${photo}`}>
                                 <img className="responsive-image" src={`${process.env.REACT_APP_IMAGE_SERVER_URL}${photo}`} alt={`${photo}`} />
                             </a>
                         </div>
@@ -412,4 +394,4 @@ function MapComponent(props) {
     );
 }
 
-export default MapComponent;
+export default React.memo(MapComponent);
