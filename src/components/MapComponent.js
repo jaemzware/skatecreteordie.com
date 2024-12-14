@@ -75,10 +75,8 @@ const mapOptions = {
     mapTypeControl: true,
     streetViewControl: true,
     fullscreenControl: true,
-    // Add these options to reduce render load
     maxZoom: 21,
     minZoom: 3,
-    gestureHandling: 'greedy'
 };
 
 // Optimize cluster options
