@@ -325,3 +325,50 @@ input[type="text"] {
   width: auto;
   max-width: 160px;
 }
+
+.pin-filter {
+  margin: 10px 0;
+  padding: 10px;
+  background-color: #f5f5f5;
+  border-radius: 4px;
+}
+
+.pin-filter-select {
+  margin-left: 10px;
+  padding: 5px;
+  border-radius: 4px;
+  border: 1px solid #ccc;
+}
+
+.filter-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.filtering-indicator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #666;
+  font-size: 14px;
+}
+
+.spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid #f3f3f3;
+  border-top: 2px solid #3498db;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.pin-filter-select:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
