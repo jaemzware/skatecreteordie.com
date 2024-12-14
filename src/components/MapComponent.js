@@ -82,7 +82,7 @@ const clusterOptions = {
     minimumClusterSize: 5,
     averageCenter: true,
     zoomOnClick: true,
-    gridSize: 60,
+    gridSize: 80,
     maxZoom: 15, // Add maxZoom to prevent unnecessary clustering at high zoom levels
     enableRetinaIcons: true,
     ignoreHidden: false
