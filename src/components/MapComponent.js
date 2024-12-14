@@ -359,7 +359,7 @@ function MapComponent(props) {
                 <table>
                     <tbody>
                     <tr><td><b>Name</b></td><td><a href={`?parkId=${parkInfo.id}`}>{parkInfo.name}</a></td></tr>
-                    <tr><td>Links</td><td>
+                    <tr><td><b>Links</b></td><td>
                         <a target="_blank" rel="noopener noreferrer" href={parkInfo.exactLocationHref}>DIRECTIONS</a> |
                         <a target="_blank" rel="noopener noreferrer" href={parkInfo.url}>WEBSITE</a>
                     </td></tr>
