@@ -11,7 +11,8 @@ function Welcome(props) {
                 alt="skatecreteordie deck logo"
             />
             </a>
-            <h1>Skatepark Map w/ photos and precise coordinates (tap truck).</h1>
+            <h1>Skatepark Map</h1>
+            <h1>(tap truck)</h1>
             <h2>Download app for best experience.</h2>
             <AppStoreButtons />
             <h2></h2>
