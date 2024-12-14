@@ -60,7 +60,6 @@ function MapComponent(props) {
         lng: -122.3321,
     };
 
-    const [markersArray, setMarkersArray] = useState([]);
     const [exactLocationHref, setExactLocationHref] = useState("https://skatecreteordie.com");
     const [name, setName] = useState("Tap Map Pins for park data and photos");
     const [address, setAddress] = useState("");
@@ -82,6 +81,7 @@ function MapComponent(props) {
     const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
     const [isPortrait, setIsPortrait] = useState(window.innerHeight > window.innerWidth);
     const [selectedPinFilter, setSelectedPinFilter] = useState('ALL');
+    const [isPinFilterChanging, setIsPinFilterChanging] = useState(false);
 
     // Extract unique pinimage values using useMemo
     const uniquePinImages = useMemo(() => {
@@ -94,6 +94,22 @@ function MapComponent(props) {
         width: "100%",
         height: isMobile && isPortrait ? "70vh" : "calc(100vh - 60px)",
     }), [isMobile, isPortrait]);
+
+    const pinCounts = useMemo(() => {
+        if (!props.fileListingArray) return {};
+
+        // Initialize with ALL count
+        const counts = {
+            'ALL': props.fileListingArray.length
+        };
+
+        // Count occurrences of each pinimage
+        props.fileListingArray.forEach(item => {
+            counts[item.pinimage] = (counts[item.pinimage] || 0) + 1;
+        });
+
+        return counts;
+    }, [props.fileListingArray]);
 
     const createMarker = useCallback((value) => {
         let marker = {
@@ -227,14 +243,34 @@ function MapComponent(props) {
         setGroup(marker.group);
     }, []);
 
-    useEffect(() => {
-        let markers = props.fileListingArray.map(createMarker);
+    // Modify the dropdown onChange handler to handle the loading state
+    const handlePinFilterChange = useCallback((e) => {
+        const newValue = e.target.value;
+        setIsPinFilterChanging(true);
 
-        // Filter markers based on selected pin type
-        if (selectedPinFilter !== 'ALL') {
-            markers = markers.filter(marker => marker.pinimage === selectedPinFilter);
-        }
+        // Small delay to let the UI update with loading state
+        setTimeout(() => {
+            setSelectedPinFilter(newValue);
 
+            // Longer delay for the loading state when going from many to few markers
+            const delay = pinCounts[newValue] < pinCounts[selectedPinFilter] ? 600 : 300;
+
+            setTimeout(() => {
+                setIsPinFilterChanging(false);
+            }, delay);
+        }, 10);
+    }, [pinCounts, selectedPinFilter]);
+
+    // Optimize marker creation and filtering using useMemo
+    const markersArray = useMemo(() => {
+        if (!props.fileListingArray) return [];
+
+        // Create and filter markers in a single pass
+        const markers = props.fileListingArray
+            .map(createMarker)
+            .filter(marker => selectedPinFilter === 'ALL' || marker.pinimage === selectedPinFilter);
+
+        // Handle selected park ID
         if (props.selectedParkId) {
             const selectedMarker = markers.find(marker => marker.id === props.selectedParkId);
             if (selectedMarker) {
@@ -244,8 +280,10 @@ function MapComponent(props) {
             }
         }
 
-        setMarkersArray(markers);
+        return markers;
+    }, [props.fileListingArray, selectedPinFilter, props.selectedParkId, createMarker, handleMarkerClick]);
 
+    useEffect(() => {
         if (navigator.geolocation) {
             navigator.geolocation.getCurrentPosition((position) => {
                 setCurrentLocation({
@@ -254,7 +292,7 @@ function MapComponent(props) {
                 });
             });
         }
-    }, [props.fileListingArray, props.selectedParkId, createMarker, handleMarkerClick, selectedPinFilter]);
+    }, []);
 
     useEffect(() => {
         const handleResize = () => {
@@ -315,19 +353,28 @@ function MapComponent(props) {
             </div>
             <div className="info-panel">
                 <div className="pin-filter">
-                    <label htmlFor="pinFilter">Filter by Pin Type: </label>
-                    <select
-                        id="pinFilter"
-                        value={selectedPinFilter}
-                        onChange={(e) => setSelectedPinFilter(e.target.value)}
-                        className="pin-filter-select"
-                    >
-                        {uniquePinImages.map(pinType => (
-                            <option key={pinType} value={pinType}>
-                                {pinType}
-                            </option>
-                        ))}
-                    </select>
+                    <div className="filter-header">
+                        <label htmlFor="pinFilter">Filter by Pin Type: </label>
+                        <select
+                            id="pinFilter"
+                            value={selectedPinFilter}
+                            onChange={handlePinFilterChange}
+                            className="pin-filter-select"
+                            disabled={isPinFilterChanging}
+                        >
+                            {uniquePinImages.map(pinType => (
+                                <option key={pinType} value={pinType}>
+                                    {pinType} ({pinCounts[pinType]})
+                                </option>
+                            ))}
+                        </select>
+                        {isPinFilterChanging && (
+                            <div className="filtering-indicator">
+                                <div className="spinner"></div>
+                                <span>Updating map...</span>
+                            </div>
+                        )}
+                    </div>
                 </div>
                 <table>
                     <tbody>
