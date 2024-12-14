@@ -81,6 +81,14 @@ function MapComponent(props) {
     const [zoomLevel, setZoomLevel] = useState(11);
     const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
     const [isPortrait, setIsPortrait] = useState(window.innerHeight > window.innerWidth);
+    const [selectedPinFilter, setSelectedPinFilter] = useState('ALL');
+
+    // Extract unique pinimage values using useMemo
+    const uniquePinImages = useMemo(() => {
+        if (!props.fileListingArray) return [];
+        const pinImages = props.fileListingArray.map(item => item.pinimage);
+        return ['ALL', ...new Set(pinImages)].sort();
+    }, [props.fileListingArray]);
 
     const containerStyle = useMemo(() => ({
         width: "100%",
@@ -220,7 +228,12 @@ function MapComponent(props) {
     }, []);
 
     useEffect(() => {
-        const markers = props.fileListingArray.map(createMarker);
+        let markers = props.fileListingArray.map(createMarker);
+
+        // Filter markers based on selected pin type
+        if (selectedPinFilter !== 'ALL') {
+            markers = markers.filter(marker => marker.pinimage === selectedPinFilter);
+        }
 
         if (props.selectedParkId) {
             const selectedMarker = markers.find(marker => marker.id === props.selectedParkId);
@@ -241,7 +254,7 @@ function MapComponent(props) {
                 });
             });
         }
-    }, [props.fileListingArray, props.selectedParkId, createMarker, handleMarkerClick]);
+    }, [props.fileListingArray, props.selectedParkId, createMarker, handleMarkerClick, selectedPinFilter]);
 
     useEffect(() => {
         const handleResize = () => {
@@ -301,6 +314,21 @@ function MapComponent(props) {
                 </button>
             </div>
             <div className="info-panel">
+                <div className="pin-filter">
+                    <label htmlFor="pinFilter">Filter by Pin Type: </label>
+                    <select
+                        id="pinFilter"
+                        value={selectedPinFilter}
+                        onChange={(e) => setSelectedPinFilter(e.target.value)}
+                        className="pin-filter-select"
+                    >
+                        {uniquePinImages.map(pinType => (
+                            <option key={pinType} value={pinType}>
+                                {pinType}
+                            </option>
+                        ))}
+                    </select>
+                </div>
                 <table>
                     <tbody>
                     <tr><td><b>Name</b></td><td><a href={`?parkId=${id}`}>{name}</a></td></tr>
