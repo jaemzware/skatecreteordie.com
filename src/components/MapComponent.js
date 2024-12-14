@@ -75,18 +75,26 @@ const mapOptions = {
     mapTypeControl: true,
     streetViewControl: true,
     fullscreenControl: true,
+    // Add these options to reduce render load
+    maxZoom: 21,
+    minZoom: 3,
+    gestureHandling: 'greedy'
 };
 
+// Optimize cluster options
 const clusterOptions = {
     algorithm: 'clusters',
     minimumClusterSize: 5,
     averageCenter: true,
     zoomOnClick: true,
-    gridSize: 80,
-    maxZoom: 15, // Add maxZoom to prevent unnecessary clustering at high zoom levels
+    gridSize: 60, // Reduced for better performance
+    maxZoom: 15,
     enableRetinaIcons: true,
-    ignoreHidden: false
-}
+    ignoreHidden: false,
+    // Add these options
+    batchSize: 100,
+    batchSizeIE: 100
+};
 
 function MapComponent(props) {
     const { isLoaded } = useLoadScript({
