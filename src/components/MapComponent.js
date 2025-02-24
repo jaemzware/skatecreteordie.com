@@ -360,13 +360,18 @@ function MapComponent(props) {
                 <a target="_blank" rel="noopener noreferrer" href={parkInfo.exactLocationHref}>{parkInfo.latitude}, {parkInfo.longitude}</a><br />
                 <a target="_blank" rel="noopener noreferrer" href={parkInfo.url}>{parkInfo.url}</a>
                 <div className="photo-container">
-                    {parkInfo.photos.map((photo, index) => (
-                        <div key={index} className="photo-item">
-                            <a target="_blank" rel="noopener noreferrer" href={`${process.env.REACT_APP_IMAGE_SERVER_URL}${photo}`}>
-                                <img className="responsive-image" src={`${process.env.REACT_APP_IMAGE_SERVER_URL}${photo}`} alt={`${photo}`} />
-                            </a>
-                        </div>
-                    ))}
+                    {parkInfo.photos.map((photo, index) => {
+                        const imageUrl = photo.startsWith('https://') || photo.startsWith('http://')
+                            ? photo
+                            : `${process.env.REACT_APP_IMAGE_SERVER_URL}${photo}`;
+                        return (
+                            <div key={index} className="photo-item">
+                                <a target="_blank" rel="noopener noreferrer" href={imageUrl}>
+                                    <img className="responsive-image" src={imageUrl} alt={`Park photo ${index}`} />
+                                </a>
+                            </div>
+                        );
+                    })}
                 </div>
                 <table>
                     <tbody>
