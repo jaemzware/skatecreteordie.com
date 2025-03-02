@@ -41,21 +41,29 @@ function SkateparkView(props){
                     <span id={"photos"}>{props.value.photos}</span>
                     <br />
                     <div className="thumbnail-row">
-                        {props.value.photos && props.value.photos.split(' ').map((photo, index) => (
-                            <a
-                                key={index}
-                                href={`${process.env.REACT_APP_IMAGE_SERVER_URL}${photo}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="thumbnail-link"
-                            >
-                                <img
-                                    src={`${process.env.REACT_APP_IMAGE_SERVER_URL}${photo}`}
-                                    alt={`Skatepark photo ${index + 1}`}
-                                    className="thumbnail-image"
-                                />
-                            </a>
-                        ))}
+                        {props.value.photos && props.value.photos.split(' ').map((photo, index) => {
+                            // Check if the photo already starts with "http://" or "https://"
+                            const isFullUrl = photo.startsWith('http://') || photo.startsWith('https://');
+
+                            // Construct the URL based on the condition
+                            const photoUrl = isFullUrl ? photo : `${process.env.REACT_APP_IMAGE_SERVER_URL}${photo}`;
+
+                            return (
+                                <a
+                                    key={index}
+                                    href={photoUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="thumbnail-link"
+                                >
+                                    <img
+                                        src={photoUrl}
+                                        alt={`Skatepark photo ${index + 1}`}
+                                        className="thumbnail-image"
+                                    />
+                                </a>
+                            );
+                        })}
                     </div>
                     <br />
                     <label htmlFor={"latitude"}>latitude:</label>
