@@ -2,7 +2,9 @@ import { useState } from 'react';
 import { loadStripe } from '@stripe/stripe-js';
 import {
     Elements,
-    CardElement,
+    CardNumberElement,
+    CardExpiryElement,
+    CardCvcElement,
     useStripe,
     useElements
 } from '@stripe/react-stripe-js';
@@ -11,18 +13,24 @@ import '../App.css';
 // Initialize Stripe (put your publishable key here)
 const stripePromise = loadStripe(process.env.REACT_APP_STRIPE_PUBLISHABLE_KEY);
 
-// Card styling options
-const cardElementOptions = {
+// Individual element options
+const elementOptions = {
     style: {
         base: {
             fontSize: '16px',
             color: '#424770',
+            fontFamily: '"Helvetica Neue", Helvetica, sans-serif',
+            fontSmoothing: 'antialiased',
             '::placeholder': {
                 color: '#aab7c4',
             },
         },
         invalid: {
             color: '#9e2146',
+            iconColor: '#9e2146',
+        },
+        complete: {
+            color: '#4f46e5',
         },
     },
 };
@@ -31,16 +39,18 @@ function DonateForm() {
     const stripe = useStripe();
     const elements = useElements();
 
-    const [selectedAmount, setSelectedAmount] = useState(1.05);
+    const [selectedAmount, setSelectedAmount] = useState(5.00);
     const [showCustomInput, setShowCustomInput] = useState(false);
     const [customAmount, setCustomAmount] = useState('');
     const [isProcessing, setIsProcessing] = useState(false);
     const [message, setMessage] = useState('');
     const [clientSecret, setClientSecret] = useState('');
     const [showPaymentForm, setShowPaymentForm] = useState(false);
+    const [customerName, setCustomerName] = useState('');
+    const [customerEmail, setCustomerEmail] = useState('');
 
     const handleSuggestedAmount = () => {
-        setSelectedAmount(1.05);
+        setSelectedAmount(5.00);
         setShowCustomInput(false);
         setCustomAmount('');
         setShowPaymentForm(false);
@@ -50,7 +60,7 @@ function DonateForm() {
 
     const handleCustomToggle = () => {
         setShowCustomInput(true);
-        setSelectedAmount(parseFloat(customAmount) || 1.05);
+        setSelectedAmount(parseFloat(customAmount) || 5.00);
         setShowPaymentForm(false);
         setClientSecret('');
         setMessage('');
@@ -59,7 +69,7 @@ function DonateForm() {
     const handleCustomAmountChange = (e) => {
         const value = e.target.value;
         setCustomAmount(value);
-        setSelectedAmount(parseFloat(value) || 1.05);
+        setSelectedAmount(parseFloat(value) || 5.00);
     };
 
     const createPaymentIntent = async () => {
@@ -71,7 +81,9 @@ function DonateForm() {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    amount: Math.round(selectedAmount * 100) // Convert to cents
+                    amount: Math.round(selectedAmount * 100), // Convert to cents
+                    customer_name: customerName,
+                    customer_email: customerEmail
                 })
             });
 
@@ -99,7 +111,8 @@ function DonateForm() {
             return;
         }
 
-        const cardElement = elements.getElement(CardElement);
+        // Use CardNumberElement instead of CardElement
+        const cardElement = elements.getElement(CardNumberElement);
 
         if (!cardElement) {
             setMessage('Card element not found.');
@@ -115,9 +128,8 @@ function DonateForm() {
                 payment_method: {
                     card: cardElement,
                     billing_details: {
-                        // You can add billing details here if needed
-                        // name: 'Customer Name',
-                        // email: 'customer@example.com',
+                        name: customerName,
+                        email: customerEmail,
                     },
                 },
             });
@@ -153,7 +165,7 @@ function DonateForm() {
                                 onClick={handleSuggestedAmount}
                                 disabled={isProcessing}
                             >
-                                $1.05 (suggested)
+                                $5.00 (suggested)
                             </button>
                             <button
                                 className={`custom-toggle ${showCustomInput ? 'active' : ''}`}
@@ -184,10 +196,37 @@ function DonateForm() {
                             <p>Donation Amount: <strong>${selectedAmount.toFixed(2)}</strong></p>
                         </div>
 
+                        <div className="customer-info">
+                            <div className="customer-field">
+                                <label htmlFor="customer-name">Full Name</label>
+                                <input
+                                    type="text"
+                                    id="customer-name"
+                                    value={customerName}
+                                    onChange={(e) => setCustomerName(e.target.value)}
+                                    placeholder="Enter your full name"
+                                    disabled={isProcessing}
+                                    required
+                                />
+                            </div>
+                            <div className="customer-field">
+                                <label htmlFor="customer-email">Email Address</label>
+                                <input
+                                    type="email"
+                                    id="customer-email"
+                                    value={customerEmail}
+                                    onChange={(e) => setCustomerEmail(e.target.value)}
+                                    placeholder="Enter your email"
+                                    disabled={isProcessing}
+                                    required
+                                />
+                            </div>
+                        </div>
+
                         <button
                             id="create-payment-btn"
                             onClick={createPaymentIntent}
-                            disabled={isProcessing || selectedAmount < 1}
+                            disabled={isProcessing || selectedAmount < 1 || !customerName.trim() || !customerEmail.trim()}
                         >
                             {isProcessing ? 'Processing...' : 'Continue to Payment'}
                         </button>
@@ -198,12 +237,31 @@ function DonateForm() {
                             <p>Donating: <strong>${selectedAmount.toFixed(2)}</strong></p>
                         </div>
 
-                        <div className="card-element-container">
-                            <label>Card Information</label>
-                            <CardElement
-                                options={cardElementOptions}
-                                className="card-element"
-                            />
+                        <div className="card-elements-container">
+                            <div className="card-field full-width">
+                                <label>Card Number</label>
+                                <CardNumberElement
+                                    options={elementOptions}
+                                    className="card-input"
+                                />
+                            </div>
+
+                            <div className="card-row">
+                                <div className="card-field">
+                                    <label>Expiry Date</label>
+                                    <CardExpiryElement
+                                        options={elementOptions}
+                                        className="card-input"
+                                    />
+                                </div>
+                                <div className="card-field">
+                                    <label>CVC</label>
+                                    <CardCvcElement
+                                        options={elementOptions}
+                                        className="card-input"
+                                    />
+                                </div>
+                            </div>
                         </div>
 
                         <div className="payment-buttons">

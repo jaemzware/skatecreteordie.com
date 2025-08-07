@@ -402,43 +402,123 @@ input[type="text"] {
   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
-/* Add these styles to your App.css or component CSS file */
-
+/* STRIPE FORM  Add these styles to your App.css or component CSS file */
+/* Replace your card element styles with these for separate fields */
 .payment-form {
   width: 100%;
-  max-width: 500px; /* Adjust as needed */
+  max-width: 600px;
+  margin: 0 auto;
 }
 
-.card-element-container {
-  width: 100%;
-}
-
-.card-element-container {
+.customer-info {
   margin: 20px 0;
   width: 100%;
 }
 
-.card-element {
+.customer-field {
+  margin-bottom: 20px;
+}
+
+.customer-field label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 500;
+  color: #333;
+  font-size: 14px;
+}
+
+.customer-field input {
   width: 100%;
   padding: 15px;
   border: 1px solid #ccc;
-  border-radius: 8px;
-  background-color: white;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  min-height: 50px; /* Give it more height too */
+  border-radius: 6px;
+  background: white;
   font-size: 16px;
+  box-sizing: border-box;
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
 }
 
-.card-element:focus {
+.customer-field input:focus {
   border-color: #4f46e5;
   box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
   outline: none;
 }
 
-.card-element--invalid {
+.customer-field input:invalid {
   border-color: #fa755a;
 }
 
+.card-elements-container {
+  margin: 20px 0;
+  width: 100%;
+}
+
+.card-field {
+  margin-bottom: 20px;
+}
+
+.card-field.full-width {
+  width: 100%;
+}
+
+.card-row {
+  display: flex;
+  gap: 15px;
+  margin-bottom: 20px;
+}
+
+.card-row .card-field {
+  flex: 1;
+  margin-bottom: 0;
+}
+
+.card-field label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 500;
+  color: #333;
+  font-size: 14px;
+}
+
+.card-input {
+  padding: 15px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  background: white;
+  min-height: 20px;
+  font-size: 16px;
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.card-input:focus {
+  border-color: #4f46e5;
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+  outline: none;
+}
+
+.card-input--invalid {
+  border-color: #fa755a;
+  box-shadow: 0 0 0 3px rgba(250, 117, 90, 0.1);
+}
+
+.card-input--complete {
+  border-color: #4f46e5;
+}
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+  .card-row {
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .card-input {
+    padding: 16px;
+    font-size: 16px;
+  }
+}
+
+/* Keep existing payment button styles */
 .payment-buttons {
   display: flex;
   gap: 12px;
