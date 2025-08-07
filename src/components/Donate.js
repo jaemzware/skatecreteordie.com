@@ -162,8 +162,12 @@ function DonateForm() {
         <div className="donate-container">
             <div className="donation-form">
                 <h3>Support Development and Maintenance</h3>
-                <h3>UNDER CONSTRUCTION DOES NOT USE REAL MONEY CARD WONT BE ACCEPTED</h3>
-                <p>The skatecreteordie Skatepark Map launched on iOS on 4/20/2016. I've personally incurred all work and expenses including: apple developer program annual fee, university of washington ios developer courses, cloud server instance maintenance and monthly fees, development time, park data scrubbing and input, photo submission input, stickers, etc.. Your help is much appreciated. </p>
+                <p>The skatecreteordie Skatepark Map launched on iOS on 4/20/2016.
+                    I've personally incurred all work and expenses including: apple developer program annual fee, google developer account,
+                    university of washington ios developer courses, cloud server instance maintenance and monthly fees, claude subscription, web domain registration & hosting,
+                    ios, android, & web development time, park data scrubbing development and input, coordinate, address and photo research,
+                    photo submission input, promotion, stickers, etc.. This app will always be free and collect NOTHING from you. Your help is much appreciated.
+                    Skate ('Crete) or Die!</p>
 
                 {!showPaymentForm ? (
                     <>
