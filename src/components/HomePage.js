@@ -8,6 +8,7 @@ import IosApp from "./IosApp";
 import SkateparkInputForm from "./SkateparkInputForm";
 import AndroidApp from "./AndroidApp";
 import Welcome from "./Welcome";
+import Donate from "./Donate";
 
 function HomePage(props){
     const [showPage, setShowPage] = useState("WELCOME");
@@ -116,6 +117,15 @@ function HomePage(props){
         return(
             <>
                 <MapComponent fileListingArray={fileListingArray}  selectedParkId={parkId}/>
+                <Footer setShowPage={handlePageChange} />
+            </>
+        );
+    }
+    else if(showPage === "DONATE") {
+        return(
+            <>
+                <Footer setShowPage={handlePageChange} />
+                <Donate fileListingArray={fileListingArray}  selectedParkId={parkId}/>
                 <Footer setShowPage={handlePageChange} />
             </>
         );
