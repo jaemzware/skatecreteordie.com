@@ -10,6 +10,12 @@ import {
 } from '@stripe/react-stripe-js';
 import '../App.css';
 
+/**
+ * Test Data
+ 4242424242424242 - Visa (always succeeds)
+ 4000000000000002 - Visa (always declined)
+ 4000000000009995 - Visa (insufficient funds)
+ */
 // Initialize Stripe (put your publishable key here)
 const stripePromise = loadStripe(process.env.REACT_APP_STRIPE_PUBLISHABLE_KEY);
 
@@ -155,7 +161,7 @@ function DonateForm() {
     return (
         <div className="donate-container">
             <div className="donation-form">
-                <h3>Support Development</h3>
+                <h3>Support Development - UNDER CONSTRUCTION DOES NOT USE REAL MONEY CARD WONT BE ACCEPTED</h3>
 
                 {!showPaymentForm ? (
                     <>
