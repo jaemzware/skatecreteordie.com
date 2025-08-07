@@ -9,7 +9,7 @@ function Footer(props) {
             <nav>
                 <a href="#" onClick={() => props.setShowPage("MAP")}>Map</a>
                 <a href="#" onClick={() => props.setShowPage("LIST")}>List</a>
-                <a href="#" onClick={() => props.setShowPage("DONATE")}>Donate</a>
+                <b><a href="#" onClick={() => props.setShowPage("DONATE")}>Donate</a></b>
                 <a href="#" onClick={() => props.setShowPage("SUBMISSION")}>Submission</a>
                 <a href="#" onClick={() => props.setShowPage("WELCOME")}>Welcome</a>
                 <a href="#" onClick={() => props.setShowPage("IOS")}>iOS</a>
