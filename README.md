@@ -12,6 +12,7 @@ This project requires several environment variables to run properly. Create a `.
 - `REACT_APP_INSTAGRAM_URL`: URL to Instagram profile
 - `REACT_APP_PRIVACY_POLICY_URL`: URL to privacy policy page
 - `REACT_APP_GITHUB_URL`: URL to GitHub repo
+- `REACT_APP_DONATE_CREATE_PAYMENT_INTENT_API_URL`: ENDPOINT_FOR_CREATE_PAYMENT_INTENT_ON_STRIPE
 
 ```env
 # Getting Started with Create React App
