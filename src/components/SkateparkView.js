@@ -2,43 +2,44 @@ import '../App.css';
 
 function SkateparkView(props){
     let geocoordinatelink = "https://www.google.com/search?q=" + props.value.latitude + "%2C" + props.value.longitude;
+    const parkId = props.value.id;
     return (
         <>
             <p>
                 <form>
-                    <label htmlFor={"name"}>name:</label>
-                    <span id={"name"}>{props.value.name}</span>
+                    <label htmlFor={`name-${parkId}`}>name:</label>
+                    <span id={`name-${parkId}`}>{props.value.name}</span>
                     <br />
-                    <label htmlFor={"address"}>address:</label>
-                    <span id={"address"}>{props.value.address}</span>
+                    <label htmlFor={`address-${parkId}`}>address:</label>
+                    <span id={`address-${parkId}`}>{props.value.address}</span>
                     <br />
-                    <label htmlFor={"id"}>id:</label>
-                    <span id={"id"}>{props.value.id}</span>
+                    <label htmlFor={`id-${parkId}`}>id:</label>
+                    <span id={`id-${parkId}`}>{props.value.id}</span>
                     <a href={`?parkId=${props.value.id}`}>{props.value.name}</a>
                     <br />
-                    <label htmlFor={"builder"}>builder:</label>
-                    <span id={"builder"}>{props.value.builder}</span>
+                    <label htmlFor={`builder-${parkId}`}>builder:</label>
+                    <span id={`builder-${parkId}`}>{props.value.builder}</span>
                     <br />
-                    <label htmlFor={"sqft"}>sqft:</label>
-                    <span id={"sqft"}>{props.value.sqft}</span>
+                    <label htmlFor={`sqft-${parkId}`}>sqft:</label>
+                    <span id={`sqft-${parkId}`}>{props.value.sqft}</span>
                     <br />
-                    <label htmlFor={"lights"}>lights:</label>
-                    <span id={"lights"}>{props.value.lights}</span>
+                    <label htmlFor={`lights-${parkId}`}>lights:</label>
+                    <span id={`lights-${parkId}`}>{props.value.lights}</span>
                     <br />
-                    <label htmlFor={"covered"}>covered:</label>
-                    <span id={"covered"}>{props.value.covered}</span>
+                    <label htmlFor={`covered-${parkId}`}>covered:</label>
+                    <span id={`covered-${parkId}`}>{props.value.covered}</span>
                     <br />
-                    <label htmlFor={"url"}>url:</label>
-                    <span id={"url"}><a target={"_blank"} href={props.value.url}>{props.value.url}</a></span>
+                    <label htmlFor={`url-${parkId}`}>url:</label>
+                    <span id={`url-${parkId}`}><a target={"_blank"} href={props.value.url}>{props.value.url}</a></span>
                     <br />
-                    <label htmlFor={"elements"}>elements:</label>
-                    <span id={"elements"}>{props.value.elements}</span>
+                    <label htmlFor={`elements-${parkId}`}>elements:</label>
+                    <span id={`elements-${parkId}`}>{props.value.elements}</span>
                     <br />
-                    <label htmlFor={"pinimage"}>pinimage:</label>
-                    <span id={"pinimage"}>{props.value.pinimage}</span>
+                    <label htmlFor={`pinimage-${parkId}`}>pinimage:</label>
+                    <span id={`pinimage-${parkId}`}>{props.value.pinimage}</span>
                     <br />
-                    <label htmlFor={"photos"}>photos:</label>
-                    <span id={"photos"}>{props.value.photos}</span>
+                    <label htmlFor={`photos-${parkId}`}>photos:</label>
+                    <span id={`photos-${parkId}`}>{props.value.photos}</span>
                     <br />
                     <div className="thumbnail-row">
                         {props.value.photos && props.value.photos.split(' ').map((photo, index) => {
@@ -66,14 +67,14 @@ function SkateparkView(props){
                         })}
                     </div>
                     <br />
-                    <label htmlFor={"latitude"}>latitude:</label>
-                    <span id={"latitude"}>{props.value.latitude}</span>
+                    <label htmlFor={`latitude-${parkId}`}>latitude:</label>
+                    <span id={`latitude-${parkId}`}>{props.value.latitude}</span>
                     <br />
-                    <label htmlFor={"longitude"}>longitude:</label>
-                    <span id={"longitude"}>{props.value.longitude}</span>
+                    <label htmlFor={`longitude-${parkId}`}>longitude:</label>
+                    <span id={`longitude-${parkId}`}>{props.value.longitude}</span>
                     <br />
-                    <label htmlFor={"group"}>group:</label>
-                    <span id={"group"}>{props.value.group}</span>
+                    <label htmlFor={`group-${parkId}`}>group:</label>
+                    <span id={`group-${parkId}`}>{props.value.group}</span>
                     <br />
                     <a href={geocoordinatelink}>DIRECTIONS</a>
                     <br />
