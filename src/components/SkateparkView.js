@@ -57,11 +57,7 @@ function SkateparkView(props){
                                     rel="noopener noreferrer"
                                     className="thumbnail-link"
                                 >
-                                    <img
-                                        src={photoUrl}
-                                        alt={`Skatepark photo ${index + 1}`}
-                                        className="thumbnail-image"
-                                    />
+                                    <span>{photoUrl}</span>
                                 </a>
                             );
                         })}
