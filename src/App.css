@@ -205,7 +205,8 @@ input[type="text"] {
 
   .map-info-container.mobile.portrait {
     flex-direction: column;
-    height: 100vh;
+    height: auto; /* Change from 100vh to auto */
+    min-height: 100vh; /* Ensure minimum height */
   }
 
   .map-info-container.mobile.portrait .map-container {
@@ -215,7 +216,10 @@ input[type="text"] {
 
   .map-info-container.mobile.portrait .info-panel {
     width: 100%;
-    height: 30vh;
+    height: auto; /* Change from 30vh to auto */
+    overflow-y: visible; /* Change from auto to visible */
+    padding: 10px;
+    background-color: #f0f0f0;
   }
 
   .map-info-container.mobile.landscape {
@@ -230,6 +234,7 @@ input[type="text"] {
   .map-info-container.mobile.landscape .info-panel {
     width: 30%;
     height: 100vh;
+    overflow-y: auto; /* Keep scrolling for landscape */
   }
 
   .map-info-container.mobile .current-location-btn {
@@ -265,6 +270,24 @@ input[type="text"] {
 
   .app-store-buttons {
     align-self: flex-end;
+  }
+}
+
+@media (max-width: 768px) and (orientation: portrait) {
+  .map-info-container.mobile.portrait .info-panel * {
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
+  .map-info-container.mobile.portrait .info-panel table {
+    width: 100%;
+    table-layout: fixed;
+    word-wrap: break-word;
+  }
+
+  .map-info-container.mobile.portrait .info-panel img {
+    max-width: 100%;
+    height: auto;
   }
 }
 
