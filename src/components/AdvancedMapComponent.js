@@ -89,8 +89,8 @@ function AdvancedMapComponent(props) {
     const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
     const [isPortrait, setIsPortrait] = useState(window.innerHeight > window.innerWidth);
     const [selectedPinFilter, setSelectedPinFilter] = useState('ALL');
-    const [isMarkersLoading, setIsMarkersLoading] = useState(false);
-
+    const [isMarkersLoading, setIsMarkersLoading] = useState(true);
+    const [locationClickCount, setLocationClickCount] = useState(0);
     const showLoadingOverlay = (!apiIsLoaded || !props.fileListingArray || isMarkersLoading);
 
     // Add markers array processing
@@ -120,6 +120,24 @@ function AdvancedMapComponent(props) {
         height: isMobile && isPortrait ? "70vh" : "calc(100vh - 60px)",
     }), [isMobile, isPortrait]);
 
+    // Add pin images and counts for filter
+    const { uniquePinImages, pinCounts } = useMemo(() => {
+        if (!props.fileListingArray) {
+            return { uniquePinImages: [], pinCounts: {} };
+        }
+
+        const pinImages = ['ALL', ...new Set(props.fileListingArray.map(item => item.pinimage))].sort();
+        const counts = {
+            'ALL': props.fileListingArray.length,
+            ...props.fileListingArray.reduce((acc, item) => {
+                acc[item.pinimage] = (acc[item.pinimage] || 0) + 1;
+                return acc;
+            }, {})
+        };
+
+        return { uniquePinImages: pinImages, pinCounts: counts };
+    }, [props.fileListingArray]);
+
     const [mapState, setMapState] = useState({
         center: initialCenter,
         zoom: 11,
@@ -147,6 +165,83 @@ function AdvancedMapComponent(props) {
         });
     }, []);
 
+    // Add pin filter change handler
+    const handlePinFilterChange = useCallback((e) => {
+        const newValue = e.target.value;
+        setSelectedPinFilter(newValue);
+    }, []);
+
+    // Add current location handler
+    const centerMapOnCurrentLocation = useCallback(() => {
+        if (mapState.currentLocation) {
+            setMapState(prev => ({
+                ...prev,
+                center: mapState.currentLocation,
+                zoom: 15
+            }));
+            setLocationClickCount(prev => prev + 1); // Force re-render
+        }
+    }, [mapState.currentLocation]);
+
+    // Add geolocation effect
+    useEffect(() => {
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition((position) => {
+                setMapState(prev => ({
+                    ...prev,
+                    currentLocation: {
+                        lat: position.coords.latitude,
+                        lng: position.coords.longitude
+                    }
+                }));
+            });
+        }
+    }, []);
+
+    // Add resize handler
+    useEffect(() => {
+        const handleResize = () => {
+            setIsMobile(window.innerWidth <= 768);
+            setIsPortrait(window.innerHeight > window.innerWidth);
+        };
+
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
+
+    // Handle selected park ID
+    useEffect(() => {
+        if (props.selectedParkId && props.fileListingArray) {
+            const selectedPark = props.fileListingArray.find(item => item.id === props.selectedParkId);
+            if (selectedPark) {
+                setMapState(prev => ({
+                    ...prev,
+                    center: {
+                        lat: parseFloat(selectedPark.latitude),
+                        lng: parseFloat(selectedPark.longitude)
+                    },
+                    zoom: 21
+                }));
+                handleMarkerClick({
+                    ...selectedPark,
+                    lat: parseFloat(selectedPark.latitude),
+                    lng: parseFloat(selectedPark.longitude)
+                });
+            }
+        }
+    }, [props.selectedParkId, props.fileListingArray, handleMarkerClick]);
+
+    // Handle marker loading state
+    useEffect(() => {
+        setIsMarkersLoading(true);
+
+        const timer = setTimeout(() => {
+            setIsMarkersLoading(false);
+        }, 500);
+
+        return () => clearTimeout(timer);
+    }, [selectedPinFilter, props.fileListingArray]);
+
     if (!apiIsLoaded) {
         return <div>Loading Google Maps...</div>;
     }
@@ -162,6 +257,7 @@ function AdvancedMapComponent(props) {
                     </div>
                 )}
                 <Map
+                    key={`${mapState.center.lat}-${mapState.center.lng}-${mapState.zoom}-${locationClickCount}`}
                     mapId="SKATECRETEORDIE_MAP_ID"
                     style={containerStyle}
                     defaultCenter={mapState.center}
@@ -182,10 +278,48 @@ function AdvancedMapComponent(props) {
                             <img src={marker.icon} width="32" height="32" alt={marker.title} />
                         </AdvancedMarker>
                     ))}
+
+                    {/* Current location marker */}
+                    {mapState.currentLocation && (
+                        <AdvancedMarker
+                            position={mapState.currentLocation}
+                            title="Current Location"
+                        >
+                            <div style={{
+                                width: '20px',
+                                height: '20px',
+                                backgroundColor: 'blue',
+                                borderRadius: '50%',
+                                border: '2px solid white'
+                            }} />
+                        </AdvancedMarker>
+                    )}
                 </Map>
+
+                {/* Current location button */}
+                <button onClick={centerMapOnCurrentLocation} className="current-location-btn">
+                    Current Location
+                </button>
             </div>
 
             <div className="info-panel">
+                <div className="pin-filter">
+                    <div className="filter-header">
+                        <label htmlFor="pinFilter">Filter by Pin Type: </label>
+                        <select
+                            id="pinFilter"
+                            value={selectedPinFilter}
+                            onChange={handlePinFilterChange}
+                            className="pin-filter-select"
+                        >
+                            {uniquePinImages.map(pinType => (
+                                <option key={pinType} value={pinType}>
+                                    {pinType} ({pinCounts[pinType]})
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+                </div>
                 <b><a href={`?parkId=${parkInfo.id}`}>{parkInfo.name}</a></b><br />
                 <a target="_blank" rel="noopener noreferrer" href={parkInfo.exactLocationHref}>{parkInfo.latitude}, {parkInfo.longitude}</a><br />
                 <a target="_blank" rel="noopener noreferrer" href={parkInfo.url}>{parkInfo.url}</a>
