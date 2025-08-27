@@ -2,13 +2,15 @@ import '../App.css';
 import React, {useEffect} from 'react';
 import { useState }  from 'react';
 import SkateparkListing from "./SkateparkListing";
-import MapComponent from "./MapComponent";
+import AdvancedMapComponent from "./AdvancedMapComponent";
 import Footer from "./Footer";
 import IosApp from "./IosApp";
 import SkateparkInputForm from "./SkateparkInputForm";
 import AndroidApp from "./AndroidApp";
 import Welcome from "./Welcome";
 import Donate from "./Donate";
+import { APIProvider } from '@vis.gl/react-google-maps';
+
 
 function HomePage(props){
     const [showPage, setShowPage] = useState("WELCOME");
@@ -116,7 +118,9 @@ function HomePage(props){
     else if(showPage === "MAP") {
         return(
             <>
-                <MapComponent fileListingArray={fileListingArray}  selectedParkId={parkId}/>
+                <APIProvider apiKey={process.env.REACT_APP_GOOGLE_MAPS_API_KEY}>
+                <AdvancedMapComponent fileListingArray={fileListingArray}  selectedParkId={parkId}/>
+                </APIProvider>
                 <Footer setShowPage={handlePageChange} />
             </>
         );
