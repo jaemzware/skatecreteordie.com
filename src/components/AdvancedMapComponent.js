@@ -117,7 +117,7 @@ function AdvancedMapComponent(props) {
 
     const containerStyle = useMemo(() => ({
         width: "100%",
-        height: isMobile && isPortrait ? "70vh" : "calc(100vh - 60px)",
+        height: isMobile && isPortrait ? "63vh" : "calc(100vh - 60px)",
     }), [isMobile, isPortrait]);
 
     // Add pin images and counts for filter
