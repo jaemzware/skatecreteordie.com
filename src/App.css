@@ -273,6 +273,7 @@ input[type="text"] {
   }
 }
 
+/* Ensure the info-panel contents don't cause horizontal overflow on mobile portrait */
 @media (max-width: 768px) and (orientation: portrait) {
   .map-info-container.mobile.portrait .info-panel * {
     max-width: 100%;
@@ -281,13 +282,39 @@ input[type="text"] {
 
   .map-info-container.mobile.portrait .info-panel table {
     width: 100%;
-    table-layout: fixed;
+    table-layout: auto; /* Changed from fixed to auto */
+  }
+
+  .map-info-container.mobile.portrait .info-panel table td:first-child {
+    width: 1%; /* Make first column as narrow as possible */
+    white-space: nowrap; /* Prevent wrapping in first column */
+    font-weight: bold;
+  }
+
+  .map-info-container.mobile.portrait .info-panel table td:last-child {
     word-wrap: break-word;
+    word-break: break-word;
+    overflow-wrap: break-word;
+    hyphens: auto;
   }
 
   .map-info-container.mobile.portrait .info-panel img {
     max-width: 100%;
     height: auto;
+  }
+
+  /* Stack photos vertically instead of horizontally */
+  .map-info-container.mobile.portrait .photo-container {
+    display: block; /* Changed from flex */
+    overflow-x: visible; /* Changed from auto */
+    margin-top: 10px;
+  }
+
+  .map-info-container.mobile.portrait .photo-item {
+    flex: none; /* Remove flex properties */
+    margin-right: 0; /* Remove right margin */
+    margin-bottom: 10px; /* Add bottom margin for spacing */
+    width: 100%; /* Full width instead of fixed 150px */
   }
 }
 
