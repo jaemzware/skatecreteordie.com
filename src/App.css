@@ -195,6 +195,8 @@ input[type="text"] {
   margin-bottom: 10px;
 }
 
+/* Update your existing mobile portrait styles in App.css */
+
 /* Mobile styles */
 @media (max-width: 768px) {
   /* Define mobile styles here */
@@ -205,17 +207,21 @@ input[type="text"] {
 
   .map-info-container.mobile.portrait {
     flex-direction: column;
-    height: 100vh;
+    height: auto; /* Change from 100vh to auto */
+    min-height: 100vh; /* Ensure minimum height */
   }
 
   .map-info-container.mobile.portrait .map-container {
     width: 100%;
-    height: 70vh;
+    height: 52vh; /* Reduced from 70vh (about 10% decrease) */
   }
 
   .map-info-container.mobile.portrait .info-panel {
     width: 100%;
-    height: 30vh;
+    height: auto; /* Change from 30vh to auto */
+    overflow-y: visible; /* Change from auto to visible */
+    padding: 10px;
+    background-color: #f0f0f0;
   }
 
   .map-info-container.mobile.landscape {
@@ -230,6 +236,7 @@ input[type="text"] {
   .map-info-container.mobile.landscape .info-panel {
     width: 30%;
     height: 100vh;
+    overflow-y: auto; /* Keep scrolling for landscape */
   }
 
   .map-info-container.mobile .current-location-btn {
@@ -265,6 +272,68 @@ input[type="text"] {
 
   .app-store-buttons {
     align-self: flex-end;
+  }
+}
+
+/* Ensure the info-panel contents don't cause horizontal overflow on mobile portrait */
+@media (max-width: 768px) and (orientation: portrait) {
+  .map-info-container.mobile.portrait .info-panel * {
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
+  .map-info-container.mobile.portrait .info-panel table {
+    width: 100%;
+    table-layout: auto; /* Changed from fixed to auto */
+  }
+
+  .map-info-container.mobile.portrait .info-panel table td:first-child {
+    width: 1%; /* Make first column as narrow as possible */
+    white-space: nowrap; /* Prevent wrapping in first column */
+    font-weight: bold;
+  }
+
+  .map-info-container.mobile.portrait .info-panel table td:last-child {
+    word-wrap: break-word;
+    word-break: break-word;
+    overflow-wrap: break-word;
+    hyphens: auto;
+  }
+
+  .map-info-container.mobile.portrait .info-panel img {
+    max-width: 100%;
+    height: auto;
+  }
+
+  /* Stack photos vertically instead of horizontally */
+  .map-info-container.mobile.portrait .photo-container {
+    display: block; /* Changed from flex */
+    overflow-x: visible; /* Changed from auto */
+    margin-top: 10px;
+  }
+
+  .map-info-container.mobile.portrait .photo-item {
+    flex: none; /* Remove flex properties */
+    margin-right: 0; /* Remove right margin */
+    margin-bottom: 10px; /* Add bottom margin for spacing */
+    width: 100%; /* Full width instead of fixed 150px */
+  }
+
+  /* Reduce padding on filter-header for mobile portrait */
+  .map-info-container.mobile.portrait .pin-filter {
+    margin: 5px 0; /* Reduced from default 10px 0 */
+    padding: 5px; /* Reduced from default 10px */
+  }
+
+  /* Reduce font size for filter elements in mobile portrait */
+  .map-info-container.mobile.portrait .filter-header label {
+    font-size: 12px; /* Smaller label text */
+  }
+
+  .map-info-container.mobile.portrait .pin-filter-select {
+    font-size: 12px; /* Smaller dropdown text */
+    padding: 3px; /* Reduced from default 5px */
+    margin-left: 5px; /* Reduced from default 10px */
   }
 }
 
