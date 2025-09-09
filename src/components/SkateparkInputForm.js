@@ -84,7 +84,7 @@ function SkateparkInputForm(props){
                         offset += 2 + dataView.getUint16(offset + 2);
                     }
 
-                    if (gpsData) {
+                    if (gpsData && gpsData.lat !== undefined && gpsData.lng !== undefined) {
                         resolve(gpsData);
                     } else {
                         reject('No GPS coordinates found in image');
