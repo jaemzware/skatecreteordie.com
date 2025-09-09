@@ -1,5 +1,4 @@
 import '../Submission.css';
-import EXIF from 'exifr';
 import { useState, useEffect }  from 'react';
 
 function SkateparkInputForm(props){
@@ -15,8 +14,6 @@ function SkateparkInputForm(props){
         url: '',
         elements: '',
         pinimage: '',
-        latitude: '',
-        longitude: '',
         group: ''
     });
 
@@ -50,16 +47,139 @@ function SkateparkInputForm(props){
         setSubmissionStatus(`${files.length} photo(s) selected`);
     };
 
-    const extractGeoCoordinates = async (file) => {
+    const extractGeoCoordinates = (file) => {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+
+            reader.onload = function(e) {
+                try {
+                    const arrayBuffer = e.target.result;
+                    const dataView = new DataView(arrayBuffer);
+
+                    if (dataView.getUint16(0) !== 0xFFD8) {
+                        reject('Not a valid JPEG file');
+                        return;
+                    }
+
+                    let offset = 2;
+                    let marker;
+                    let gpsData = null;
+
+                    while (offset < dataView.byteLength) {
+                        marker = dataView.getUint16(offset);
+
+                        if (marker === 0xFFE1) {
+                            const exifLength = dataView.getUint16(offset + 2);
+                            const exifData = new DataView(arrayBuffer, offset + 4, exifLength - 2);
+
+                            if (exifData.getUint32(0) === 0x45786966) {
+                                gpsData = extractGPSFromEXIF(exifData);
+                                break;
+                            }
+                        }
+
+                        if (marker === 0xFFDA) break;
+
+                        offset += 2 + dataView.getUint16(offset + 2);
+                    }
+
+                    if (gpsData) {
+                        resolve(gpsData);
+                    } else {
+                        reject('No GPS coordinates found in image');
+                    }
+
+                } catch (error) {
+                    reject('Error reading EXIF data: ' + error.message);
+                }
+            };
+
+            reader.onerror = () => reject('Error reading file');
+            reader.readAsArrayBuffer(file);
+        });
+    };
+
+    const extractGPSFromEXIF = (exifData) => {
         try {
-            const exifData = await EXIF.parse(file);
-            if (exifData && exifData.latitude && exifData.longitude) {
-                return { lat: exifData.latitude, lng: exifData.longitude };
-            } else {
-                throw new Error('No GPS coordinates found in image');
+            let offset = 6;
+            const tiffHeader = new DataView(exifData.buffer, exifData.byteOffset + offset);
+
+            const byteOrder = tiffHeader.getUint16(0);
+            const littleEndian = byteOrder === 0x4949;
+
+            let ifdOffset = tiffHeader.getUint32(4, littleEndian);
+
+            while (ifdOffset !== 0) {
+                const ifd = new DataView(exifData.buffer, exifData.byteOffset + offset + ifdOffset);
+                const numEntries = ifd.getUint16(0, littleEndian);
+
+                for (let i = 0; i < numEntries; i++) {
+                    const entryOffset = 2 + (i * 12);
+                    const tag = ifd.getUint16(entryOffset, littleEndian);
+
+                    if (tag === 0x8825) {
+                        const gpsIfdOffset = ifd.getUint32(entryOffset + 8, littleEndian);
+                        return parseGPSIFD(new DataView(exifData.buffer, exifData.byteOffset + offset + gpsIfdOffset), littleEndian);
+                    }
+                }
+
+                ifdOffset = ifd.getUint32(2 + (numEntries * 12), littleEndian);
             }
+
+            return null;
         } catch (error) {
-            throw new Error('Failed to read image metadata');
+            console.error('Error parsing EXIF GPS data:', error);
+            return null;
+        }
+    };
+
+    const parseGPSIFD = (gpsIfd, littleEndian) => {
+        const numEntries = gpsIfd.getUint16(0, littleEndian);
+        let latitude = null, longitude = null, latRef = null, lngRef = null;
+
+        for (let i = 0; i < numEntries; i++) {
+            const entryOffset = 2 + (i * 12);
+            const tag = gpsIfd.getUint16(entryOffset, littleEndian);
+
+            switch (tag) {
+                case 1:
+                    latRef = String.fromCharCode(gpsIfd.getUint8(entryOffset + 8));
+                    break;
+                case 2:
+                    latitude = parseGPSCoordinate(gpsIfd, gpsIfd.getUint32(entryOffset + 8, littleEndian), littleEndian);
+                    break;
+                case 3:
+                    lngRef = String.fromCharCode(gpsIfd.getUint8(entryOffset + 8));
+                    break;
+                case 4:
+                    longitude = parseGPSCoordinate(gpsIfd, gpsIfd.getUint32(entryOffset + 8, littleEndian), littleEndian);
+                    break;
+            }
+        }
+
+        if (latitude && longitude && latRef && lngRef) {
+            let lat = latitude[0] + latitude[1]/60 + latitude[2]/3600;
+            let lng = longitude[0] + longitude[1]/60 + longitude[2]/3600;
+
+            if (latRef === 'S') lat = -lat;
+            if (lngRef === 'W') lng = -lng;
+
+            return { lat, lng };
+        }
+
+        return null;
+    };
+
+    const parseGPSCoordinate = (gpsIfd, offset, littleEndian) => {
+        try {
+            const degrees = gpsIfd.getUint32(offset, littleEndian) / gpsIfd.getUint32(offset + 4, littleEndian);
+            const minutes = gpsIfd.getUint32(offset + 8, littleEndian) / gpsIfd.getUint32(offset + 12, littleEndian);
+            const seconds = gpsIfd.getUint32(offset + 16, littleEndian) / gpsIfd.getUint32(offset + 20, littleEndian);
+
+            return [degrees, minutes, seconds];
+        } catch (error) {
+            console.error('Error parsing GPS coordinate:', error);
+            return null;
         }
     };
 
@@ -98,24 +218,22 @@ function SkateparkInputForm(props){
             const { validatedPhotos, errors } = await validatePhotos(photos);
 
             if (validatedPhotos.length === 0) {
-                setSubmissionStatus(`No valid photos found. Errors: ${errors.join(', ')}`);
+                setSubmissionStatus(`No valid photos found. All photos must contain GPS coordinates. Errors: ${errors.join(', ')}`);
                 return;
             }
 
             if (errors.length > 0) {
                 console.warn("Some photos rejected:", errors);
+                setSubmissionStatus(`Warning: ${errors.length} photo(s) rejected for missing GPS data. Proceeding with ${validatedPhotos.length} valid photo(s)...`);
             }
 
             setSubmissionStatus(`Uploading ${validatedPhotos.length} photo(s)...`);
 
-            // Create FormData for file upload
             const uploadData = new FormData();
 
-            // Add each validated photo
             validatedPhotos.forEach((photoData, index) => {
                 uploadData.append(`photos`, photoData.file);
 
-                // Create metadata for each photo
                 const metadata = {
                     ...formData,
                     coordinates: photoData.coordinates,
@@ -126,21 +244,18 @@ function SkateparkInputForm(props){
                 uploadData.append(`metadata_${index}`, JSON.stringify(metadata));
             });
 
-            // Add general form data
             uploadData.append('spotData', JSON.stringify(formData));
             uploadData.append('photoCount', validatedPhotos.length.toString());
 
-            // Submit to server
             const response = await fetch(process.env.REACT_APP_SUBMISSION_API_URL, {
                 method: "POST",
-                body: uploadData // Don't set Content-Type header for FormData
+                body: uploadData
             });
 
             if (response.ok) {
                 console.log("Submission successful!");
                 setSubmissionStatus(`Successfully uploaded ${validatedPhotos.length} photo(s)! Thank you for your submission.`);
 
-                // Reset form
                 setFormData({
                     name: '',
                     address: '',
@@ -152,13 +267,10 @@ function SkateparkInputForm(props){
                     url: '',
                     elements: '',
                     pinimage: '',
-                    latitude: '',
-                    longitude: '',
                     group: ''
                 });
                 setPhotos([]);
 
-                // Reset file input
                 const fileInput = document.getElementById('photos');
                 if (fileInput) fileInput.value = '';
 
@@ -237,12 +349,6 @@ function SkateparkInputForm(props){
                                 ))}
                             </select>
                         </td>
-                    </tr>
-                    <tr>
-                        <td><label htmlFor="latitude">Latitude:</label><input onChange={handleInputChange} type="text" id="latitude" name="latitude" placeholder="will be extracted from photos if present" value={formData.latitude} /></td>
-                    </tr>
-                    <tr>
-                        <td><label htmlFor="longitude">Longitude:</label><input onChange={handleInputChange} type="text" id="longitude" name="longitude" placeholder="will be extracted from photos if present" value={formData.longitude}/></td>
                     </tr>
                     <tr>
                         <td>
