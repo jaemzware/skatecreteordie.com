@@ -84,10 +84,18 @@ function SkateparkInputForm(props){
                         offset += 2 + dataView.getUint16(offset + 2);
                     }
 
-                    if (gpsData) {
+                    // FIXED: Proper validation that checks for valid numeric coordinates
+                    if (gpsData &&
+                        gpsData.lat !== undefined &&
+                        gpsData.lng !== undefined &&
+                        !isNaN(gpsData.lat) &&
+                        !isNaN(gpsData.lng) &&
+                        gpsData.lat >= -90 && gpsData.lat <= 90 &&
+                        gpsData.lng >= -180 && gpsData.lng <= 180 &&
+                        !(gpsData.lat === 0 && gpsData.lng === 0)) {
                         resolve(gpsData);
                     } else {
-                        reject('No GPS coordinates found in image');
+                        reject('No valid GPS coordinates found in image');
                     }
 
                 } catch (error) {
