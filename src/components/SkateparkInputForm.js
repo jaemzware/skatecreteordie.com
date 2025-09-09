@@ -14,15 +14,14 @@ function SkateparkInputForm(props){
         url: '',
         elements: '',
         pinimage: '',
-        photos: '',
-        latitude: '',
-        longitude: '',
         group: ''
     });
 
+    const [photos, setPhotos] = useState([]);
     const [submissionStatus, setSubmissionStatus] = useState("New Submission");
     const [uniquePin, setUniquePin] = useState([]);
     const [uniqueLocationGroup, setLocationGroup] = useState([]);
+    const [showOptionalFields, setShowOptionalFields] = useState(false);
 
     useEffect(() => {
         const uniqueInitialPins = [...new Set(props.fileListingArray.map(item => item.pinimage))];
@@ -43,134 +42,392 @@ function SkateparkInputForm(props){
         });
     };
 
-    const handleSubmit = (event) => {
+    const handlePhotoUpload = (event) => {
+        const files = Array.from(event.target.files);
+        setPhotos(files);
+        setSubmissionStatus(`${files.length} photo(s) selected`);
+    };
+
+    const extractGeoCoordinates = (file) => {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+
+            reader.onload = function(e) {
+                try {
+                    const arrayBuffer = e.target.result;
+                    const dataView = new DataView(arrayBuffer);
+
+                    if (dataView.getUint16(0) !== 0xFFD8) {
+                        reject('Not a valid JPEG file');
+                        return;
+                    }
+
+                    let offset = 2;
+                    let marker;
+                    let gpsData = null;
+
+                    while (offset < dataView.byteLength) {
+                        marker = dataView.getUint16(offset);
+
+                        if (marker === 0xFFE1) {
+                            const exifLength = dataView.getUint16(offset + 2);
+                            const exifData = new DataView(arrayBuffer, offset + 4, exifLength - 2);
+
+                            if (exifData.getUint32(0) === 0x45786966) {
+                                gpsData = extractGPSFromEXIF(exifData);
+                                break;
+                            }
+                        }
+
+                        if (marker === 0xFFDA) break;
+
+                        offset += 2 + dataView.getUint16(offset + 2);
+                    }
+
+                    if (gpsData) {
+                        resolve(gpsData);
+                    } else {
+                        reject('No GPS coordinates found in image');
+                    }
+
+                } catch (error) {
+                    reject('Error reading EXIF data: ' + error.message);
+                }
+            };
+
+            reader.onerror = () => reject('Error reading file');
+            reader.readAsArrayBuffer(file);
+        });
+    };
+
+    const extractGPSFromEXIF = (exifData) => {
+        try {
+            let offset = 6;
+            const tiffHeader = new DataView(exifData.buffer, exifData.byteOffset + offset);
+
+            const byteOrder = tiffHeader.getUint16(0);
+            const littleEndian = byteOrder === 0x4949;
+
+            let ifdOffset = tiffHeader.getUint32(4, littleEndian);
+
+            while (ifdOffset !== 0) {
+                const ifd = new DataView(exifData.buffer, exifData.byteOffset + offset + ifdOffset);
+                const numEntries = ifd.getUint16(0, littleEndian);
+
+                for (let i = 0; i < numEntries; i++) {
+                    const entryOffset = 2 + (i * 12);
+                    const tag = ifd.getUint16(entryOffset, littleEndian);
+
+                    if (tag === 0x8825) {
+                        const gpsIfdOffset = ifd.getUint32(entryOffset + 8, littleEndian);
+                        return parseGPSIFD(new DataView(exifData.buffer, exifData.byteOffset + offset + gpsIfdOffset), littleEndian);
+                    }
+                }
+
+                ifdOffset = ifd.getUint32(2 + (numEntries * 12), littleEndian);
+            }
+
+            return null;
+        } catch (error) {
+            console.error('Error parsing EXIF GPS data:', error);
+            return null;
+        }
+    };
+
+    const parseGPSIFD = (gpsIfd, littleEndian) => {
+        const numEntries = gpsIfd.getUint16(0, littleEndian);
+        let latitude = null, longitude = null, latRef = null, lngRef = null;
+
+        for (let i = 0; i < numEntries; i++) {
+            const entryOffset = 2 + (i * 12);
+            const tag = gpsIfd.getUint16(entryOffset, littleEndian);
+
+            switch (tag) {
+                case 1:
+                    latRef = String.fromCharCode(gpsIfd.getUint8(entryOffset + 8));
+                    break;
+                case 2:
+                    latitude = parseGPSCoordinate(gpsIfd, gpsIfd.getUint32(entryOffset + 8, littleEndian), littleEndian);
+                    break;
+                case 3:
+                    lngRef = String.fromCharCode(gpsIfd.getUint8(entryOffset + 8));
+                    break;
+                case 4:
+                    longitude = parseGPSCoordinate(gpsIfd, gpsIfd.getUint32(entryOffset + 8, littleEndian), littleEndian);
+                    break;
+            }
+        }
+
+        if (latitude && longitude && latRef && lngRef) {
+            let lat = latitude[0] + latitude[1]/60 + latitude[2]/3600;
+            let lng = longitude[0] + longitude[1]/60 + longitude[2]/3600;
+
+            if (latRef === 'S') lat = -lat;
+            if (lngRef === 'W') lng = -lng;
+
+            return { lat, lng };
+        }
+
+        return null;
+    };
+
+    const parseGPSCoordinate = (gpsIfd, offset, littleEndian) => {
+        try {
+            const degrees = gpsIfd.getUint32(offset, littleEndian) / gpsIfd.getUint32(offset + 4, littleEndian);
+            const minutes = gpsIfd.getUint32(offset + 8, littleEndian) / gpsIfd.getUint32(offset + 12, littleEndian);
+            const seconds = gpsIfd.getUint32(offset + 16, littleEndian) / gpsIfd.getUint32(offset + 20, littleEndian);
+
+            return [degrees, minutes, seconds];
+        } catch (error) {
+            console.error('Error parsing GPS coordinate:', error);
+            return null;
+        }
+    };
+
+    const validatePhotos = async (files) => {
+        const validatedPhotos = [];
+        const errors = [];
+
+        for (let i = 0; i < files.length; i++) {
+            const file = files[i];
+            try {
+                const coords = await extractGeoCoordinates(file);
+                validatedPhotos.push({
+                    file: file,
+                    coordinates: coords,
+                    name: file.name
+                });
+            } catch (error) {
+                errors.push(`${file.name}: ${error}`);
+            }
+        }
+
+        return { validatedPhotos, errors };
+    };
+
+    const handleSubmit = async (event) => {
         event.preventDefault();
 
-        const submissionData = {
-            submission: {
-                ...formData, // Include existing form data
-            },
-        };
+        if (photos.length === 0) {
+            setSubmissionStatus("Please select at least one photo to upload");
+            return;
+        }
 
-        setSubmissionStatus(`Sending submission ...`);
-        console.log(submissionData);
+        setSubmissionStatus("Validating photos for GPS coordinates...");
 
-        // Perform a POST fetch to the specified URL
-        fetch(process.env.REACT_APP_SUBMISSION_API_URL, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify(submissionData)
-        })
-            .then(response => {
-                if (response.ok) {
-                    // Successful submission, you can handle the response here
-                    console.log("Submission successful!");
-                    setSubmissionStatus("Submitted, Thank You! Email photos to crete@skatecreteordie.com with the park name.");
-                    setFormData({
-                        name: '',
-                        address: '',
-                        id: '',
-                        builder: '',
-                        sqft: '',
-                        lights: '',
-                        covered: '',
-                        url: '',
-                        elements: '',
-                        pinimage: '',
-                        photos: '',
-                        latitude: '',
-                        longitude: '',
-                        group: ''
-                    });
-                } else {
-                    // Handle errors if the POST request fails
-                    console.error("Submission failed.");
-                    setSubmissionStatus("Submission failed, sorry");
-                }
-            })
-            .catch(error => {
-                // Handle network or other errors
-                console.error("An error occurred:", error);
-                setSubmissionStatus("Submission failed, sorry:", error);
+        try {
+            const { validatedPhotos, errors } = await validatePhotos(photos);
+
+            if (validatedPhotos.length === 0) {
+                setSubmissionStatus(`No valid photos found. All photos must contain GPS coordinates. Errors: ${errors.join(', ')}`);
+                return;
+            }
+
+            if (errors.length > 0) {
+                console.warn("Some photos rejected:", errors);
+                setSubmissionStatus(`Warning: ${errors.length} photo(s) rejected for missing GPS data. Proceeding with ${validatedPhotos.length} valid photo(s)...`);
+            }
+
+            setSubmissionStatus(`Uploading ${validatedPhotos.length} photo(s)...`);
+
+            const uploadData = new FormData();
+
+            validatedPhotos.forEach((photoData, index) => {
+                uploadData.append(`photos`, photoData.file);
+
+                const metadata = {
+                    ...formData,
+                    coordinates: photoData.coordinates,
+                    originalFileName: photoData.name,
+                    uploadIndex: index
+                };
+
+                uploadData.append(`metadata_${index}`, JSON.stringify(metadata));
             });
 
+            uploadData.append('spotData', JSON.stringify(formData));
+            uploadData.append('photoCount', validatedPhotos.length.toString());
+
+            const response = await fetch(process.env.REACT_APP_SUBMISSION_API_URL, {
+                method: "POST",
+                body: uploadData
+            });
+
+            if (response.ok) {
+                console.log("Submission successful!");
+                setSubmissionStatus(`Successfully uploaded ${validatedPhotos.length} photo(s)! Thank you for your submission.`);
+
+                setFormData({
+                    name: '',
+                    address: '',
+                    id: '',
+                    builder: '',
+                    sqft: '',
+                    lights: '',
+                    covered: '',
+                    url: '',
+                    elements: '',
+                    pinimage: '',
+                    group: ''
+                });
+                setPhotos([]);
+
+                const fileInput = document.getElementById('photos');
+                if (fileInput) fileInput.value = '';
+
+            } else {
+                console.error("Submission failed.");
+                setSubmissionStatus("Submission failed, please try again");
+            }
+
+        } catch (error) {
+            console.error("An error occurred:", error);
+            setSubmissionStatus("An error occurred during submission");
+        }
     };
 
     return (
         <>
             <form onSubmit={handleSubmit}>
-                <table id="skateparkinputform">
-                    <tr>
-                        <td><label htmlFor="name">name:</label><input onChange={handleInputChange} type="text" id="name" name="name" placeholder="skatepark name" value={formData.name} /></td>
-                    </tr>
-                    <tr>
-                        <td><label htmlFor="address">address:</label><input onChange={handleInputChange} type="text" id="address" name="address" placeholder="nearest address" value={formData.address}/></td>
-                    </tr>
-                    <tr>
-                        <td><label htmlFor="id">id:</label><input onChange={handleInputChange} type="text" id="id" name="id" placeholder="unique park id" value={formData.id}/></td>
-                    </tr>
-                    <tr>
-                        <td><label htmlFor="builder">builder:</label><input onChange={handleInputChange} type="text" id="builder" name="builder" placeholder="builder and/or designer" value={formData.builder}/></td>
-                    </tr>
-                    <tr>
-                        <td><label htmlFor="sqft">sqft:</label><input onChange={handleInputChange} type="text" id="sqft" name="sqft" placeholder="square feet of the park" value={formData.sqft}/></td>
-                    </tr>
-                    <tr>
-                        <td><label htmlFor="lights">lights:</label><input onChange={handleInputChange} type="text" id="lights" name="lights" placeholder="lights? yes, no, complicated?" value={formData.lights}/></td>
-                    </tr>
-                    <tr>
-                        <td><label htmlFor="covered">covered:</label><input onChange={handleInputChange} type="text" id="covered" name="covered" placeholder="covered? yes, no, complicated?" value={formData.covered}/></td>
-                    </tr>
-                    <tr>
-                        <td><label htmlFor="url">url:</label><input onChange={handleInputChange} type="text" id="url" name="url" placeholder="website for more information" value={formData.url}/></td>
-                    </tr>
-                    <tr>
-                        <td><label htmlFor="elements">elements:</label><input onChange={handleInputChange} type="text" id="elements" name="elements" placeholder="description of park. transition? street? elements?" value={formData.elements}/></td>
-                    </tr>
-                    <tr>
-                        <td>
-                            <label htmlFor="pinimage">pinimage:</label>
-                            <select id="pinimage" name="pinimage" onChange={handleInputChange}>
-                                <option value="">Select a PIN IMAGE</option>
-                                {uniquePin.map((pin, index) => (
-                                    <option key={index} value={pin}>
-                                        {pin}
-                                    </option>
-                                ))}
-                            </select>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td><label htmlFor="photos">photos:</label><input onChange={handleInputChange} type="text" id="photos" name="photos" placeholder="photo names (email to me)" value={formData.photos}/></td>
-                    </tr>
-                    <tr>
-                        <td><label htmlFor="latitude">latitude:</label><input onChange={handleInputChange} type="text" id="latitude" name="latitude" placeholder="latitude" value={formData.latitude} /></td>
-                    </tr>
-                    <tr>
-                        <td><label htmlFor="longitude">longtitude:</label><input onChange={handleInputChange} type="text" id="longitude" name="longitude" placeholder="longitude" value={formData.longitude}/></td>
-                    </tr>
-                    <tr>
-                        <td>
-                            <label htmlFor="group">group:</label>
-                            <select id="group" name="group" onChange={handleInputChange}>
-                                <option value="">Select a Location</option>
-                                {uniqueLocationGroup.map((code, index) => (
-                                    <option key={index} value={code}>
-                                        {code}
-                                    </option>
-                                ))}
-                            </select>
-                        </td>
-                    </tr>
-                    <tr>
-                        <span>{submissionStatus}</span>
-                    </tr>
-                    <tr>
-                        <td><input id="mySubmit" name="mySubmit" type="submit" value="Submit Park" disabled={false}/></td>
-                    </tr>
-                </table>
+                <div id="skateparkinputform" style={{maxWidth: '600px'}}>
+                    {/* Main Section - Prominent */}
+                    <div style={{marginBottom: '20px', padding: '20px', border: '2px solid #007cba', borderRadius: '8px', backgroundColor: '#f8f9fa'}}>
+                        <h3 style={{margin: '0 0 15px 0', color: '#007cba'}}>Upload Skate Spot Photos</h3>
+                        <p style={{margin: '0 0 15px 0', fontSize: '16px'}}><strong>Required:</strong> Photos with GPS coordinates (geocoordinates)</p>
+
+                        <div style={{marginBottom: '15px'}}>
+                            <label htmlFor="photos" style={{display: 'block', marginBottom: '5px', fontWeight: 'bold', fontSize: '16px'}}>
+                                Select Photos*:
+                            </label>
+                            <input
+                                onChange={handlePhotoUpload}
+                                type="file"
+                                id="photos"
+                                name="photos"
+                                accept="image/*"
+                                multiple
+                                required
+                                style={{padding: '8px', fontSize: '14px', width: '100%', maxWidth: '400px'}}
+                            />
+                        </div>
+
+                        <div style={{padding: "10px", backgroundColor: "#e9ecef", border: "1px solid #dee2e6", borderRadius: "4px", marginBottom: '15px'}}>
+                            <strong>Status:</strong> <span>{submissionStatus}</span>
+                        </div>
+
+                        <input
+                            id="mySubmit"
+                            name="mySubmit"
+                            type="submit"
+                            value="Upload Photos & Submit Spot"
+                            style={{
+                                padding: '12px 24px',
+                                fontSize: '16px',
+                                fontWeight: 'bold',
+                                backgroundColor: '#007cba',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '4px',
+                                cursor: 'pointer'
+                            }}
+                        />
+                    </div>
+
+                    {/* Optional Fields - Less Prominent */}
+                    <div style={{marginBottom: '20px'}}>
+                        <button
+                            type="button"
+                            onClick={() => setShowOptionalFields(!showOptionalFields)}
+                            style={{
+                                background: 'none',
+                                border: '1px solid #ccc',
+                                padding: '8px 12px',
+                                borderRadius: '4px',
+                                cursor: 'pointer',
+                                fontSize: '14px',
+                                color: '#666'
+                            }}
+                        >
+                            {showOptionalFields ? '− Hide' : '+ Show'} Optional Details
+                        </button>
+                        <span style={{marginLeft: '10px', fontSize: '13px', color: '#888'}}>
+                            (spot name, address, features, etc.)
+                        </span>
+                    </div>
+
+                    {showOptionalFields && (
+                        <div style={{padding: '15px', backgroundColor: '#f8f9fa', border: '1px solid #e9ecef', borderRadius: '4px'}}>
+                            <h4 style={{margin: '0 0 15px 0', fontSize: '16px', color: '#666'}}>Optional Information</h4>
+
+                            <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '10px'}}>
+                                <div>
+                                    <label htmlFor="name" style={{display: 'block', fontSize: '13px', color: '#666', marginBottom: '3px'}}>Spot Name:</label>
+                                    <input onChange={handleInputChange} type="text" id="name" name="name" placeholder="skatepark/spot name" value={formData.name} style={{width: '100%', padding: '6px', fontSize: '13px'}} />
+                                </div>
+                                <div>
+                                    <label htmlFor="address" style={{display: 'block', fontSize: '13px', color: '#666', marginBottom: '3px'}}>Address:</label>
+                                    <input onChange={handleInputChange} type="text" id="address" name="address" placeholder="nearest address" value={formData.address} style={{width: '100%', padding: '6px', fontSize: '13px'}} />
+                                </div>
+                            </div>
+
+                            <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '10px'}}>
+                                <div>
+                                    <label htmlFor="elements" style={{display: 'block', fontSize: '13px', color: '#666', marginBottom: '3px'}}>Features:</label>
+                                    <input onChange={handleInputChange} type="text" id="elements" name="elements" placeholder="transition, street, bowl, etc." value={formData.elements} style={{width: '100%', padding: '6px', fontSize: '13px'}} />
+                                </div>
+                                <div>
+                                    <label htmlFor="builder" style={{display: 'block', fontSize: '13px', color: '#666', marginBottom: '3px'}}>Builder:</label>
+                                    <input onChange={handleInputChange} type="text" id="builder" name="builder" placeholder="builder and/or designer" value={formData.builder} style={{width: '100%', padding: '6px', fontSize: '13px'}} />
+                                </div>
+                            </div>
+
+                            <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px', marginBottom: '10px'}}>
+                                <div>
+                                    <label htmlFor="sqft" style={{display: 'block', fontSize: '13px', color: '#666', marginBottom: '3px'}}>Size (sq ft):</label>
+                                    <input onChange={handleInputChange} type="text" id="sqft" name="sqft" placeholder="approximate size" value={formData.sqft} style={{width: '100%', padding: '6px', fontSize: '13px'}} />
+                                </div>
+                                <div>
+                                    <label htmlFor="lights" style={{display: 'block', fontSize: '13px', color: '#666', marginBottom: '3px'}}>Lights:</label>
+                                    <input onChange={handleInputChange} type="text" id="lights" name="lights" placeholder="yes/no/partial" value={formData.lights} style={{width: '100%', padding: '6px', fontSize: '13px'}} />
+                                </div>
+                                <div>
+                                    <label htmlFor="covered" style={{display: 'block', fontSize: '13px', color: '#666', marginBottom: '3px'}}>Covered:</label>
+                                    <input onChange={handleInputChange} type="text" id="covered" name="covered" placeholder="yes/no/partial" value={formData.covered} style={{width: '100%', padding: '6px', fontSize: '13px'}} />
+                                </div>
+                            </div>
+
+                            <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px'}}>
+                                <div>
+                                    <label htmlFor="url" style={{display: 'block', fontSize: '13px', color: '#666', marginBottom: '3px'}}>Website:</label>
+                                    <input onChange={handleInputChange} type="text" id="url" name="url" placeholder="website or social link" value={formData.url} style={{width: '100%', padding: '6px', fontSize: '13px'}} />
+                                </div>
+                                <div>
+                                    <label htmlFor="pinimage" style={{display: 'block', fontSize: '13px', color: '#666', marginBottom: '3px'}}>Pin Style:</label>
+                                    <select id="pinimage" name="pinimage" onChange={handleInputChange} value={formData.pinimage} style={{width: '100%', padding: '6px', fontSize: '13px'}}>
+                                        <option value="">Select pin image</option>
+                                        {uniquePin.map((pin, index) => (
+                                            <option key={index} value={pin}>{pin}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label htmlFor="group" style={{display: 'block', fontSize: '13px', color: '#666', marginBottom: '3px'}}>Location Group:</label>
+                                    <select id="group" name="group" onChange={handleInputChange} value={formData.group} style={{width: '100%', padding: '6px', fontSize: '13px'}}>
+                                        <option value="">Select location group</option>
+                                        {uniqueLocationGroup.map((code, index) => (
+                                            <option key={index} value={code}>{code}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div style={{marginTop: '10px'}}>
+                                <label htmlFor="id" style={{display: 'block', fontSize: '13px', color: '#666', marginBottom: '3px'}}>Spot ID:</label>
+                                <input onChange={handleInputChange} type="text" id="id" name="id" placeholder="unique spot identifier" value={formData.id} style={{width: '100%', maxWidth: '200px', padding: '6px', fontSize: '13px'}} />
+                            </div>
+                        </div>
+                    )}
+                </div>
             </form>
         </>
     );
