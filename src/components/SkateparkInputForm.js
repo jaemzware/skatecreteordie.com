@@ -1,4 +1,5 @@
 import '../Submission.css';
+import EXIF from 'exifr';
 import { useState, useEffect }  from 'react';
 
 function SkateparkInputForm(props){
@@ -14,12 +15,12 @@ function SkateparkInputForm(props){
         url: '',
         elements: '',
         pinimage: '',
-        photos: '',
         latitude: '',
         longitude: '',
         group: ''
     });
 
+    const [photos, setPhotos] = useState([]);
     const [submissionStatus, setSubmissionStatus] = useState("New Submission");
     const [uniquePin, setUniquePin] = useState([]);
     const [uniqueLocationGroup, setLocationGroup] = useState([]);
@@ -43,59 +44,133 @@ function SkateparkInputForm(props){
         });
     };
 
-    const handleSubmit = (event) => {
+    const handlePhotoUpload = (event) => {
+        const files = Array.from(event.target.files);
+        setPhotos(files);
+        setSubmissionStatus(`${files.length} photo(s) selected`);
+    };
+
+    const extractGeoCoordinates = async (file) => {
+        try {
+            const exifData = await EXIF.parse(file);
+            if (exifData && exifData.latitude && exifData.longitude) {
+                return { lat: exifData.latitude, lng: exifData.longitude };
+            } else {
+                throw new Error('No GPS coordinates found in image');
+            }
+        } catch (error) {
+            throw new Error('Failed to read image metadata');
+        }
+    };
+
+    const validatePhotos = async (files) => {
+        const validatedPhotos = [];
+        const errors = [];
+
+        for (let i = 0; i < files.length; i++) {
+            const file = files[i];
+            try {
+                const coords = await extractGeoCoordinates(file);
+                validatedPhotos.push({
+                    file: file,
+                    coordinates: coords,
+                    name: file.name
+                });
+            } catch (error) {
+                errors.push(`${file.name}: ${error}`);
+            }
+        }
+
+        return { validatedPhotos, errors };
+    };
+
+    const handleSubmit = async (event) => {
         event.preventDefault();
 
-        const submissionData = {
-            submission: {
-                ...formData, // Include existing form data
-            },
-        };
+        if (photos.length === 0) {
+            setSubmissionStatus("Please select at least one photo to upload");
+            return;
+        }
 
-        setSubmissionStatus(`Sending submission ...`);
-        console.log(submissionData);
+        setSubmissionStatus("Validating photos for GPS coordinates...");
 
-        // Perform a POST fetch to the specified URL
-        fetch(process.env.REACT_APP_SUBMISSION_API_URL, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify(submissionData)
-        })
-            .then(response => {
-                if (response.ok) {
-                    // Successful submission, you can handle the response here
-                    console.log("Submission successful!");
-                    setSubmissionStatus("Submitted, Thank You! Email photos to crete@skatecreteordie.com with the park name.");
-                    setFormData({
-                        name: '',
-                        address: '',
-                        id: '',
-                        builder: '',
-                        sqft: '',
-                        lights: '',
-                        covered: '',
-                        url: '',
-                        elements: '',
-                        pinimage: '',
-                        photos: '',
-                        latitude: '',
-                        longitude: '',
-                        group: ''
-                    });
-                } else {
-                    // Handle errors if the POST request fails
-                    console.error("Submission failed.");
-                    setSubmissionStatus("Submission failed, sorry");
-                }
-            })
-            .catch(error => {
-                // Handle network or other errors
-                console.error("An error occurred:", error);
-                setSubmissionStatus("Submission failed, sorry:", error);
+        try {
+            const { validatedPhotos, errors } = await validatePhotos(photos);
+
+            if (validatedPhotos.length === 0) {
+                setSubmissionStatus(`No valid photos found. Errors: ${errors.join(', ')}`);
+                return;
+            }
+
+            if (errors.length > 0) {
+                console.warn("Some photos rejected:", errors);
+            }
+
+            setSubmissionStatus(`Uploading ${validatedPhotos.length} photo(s)...`);
+
+            // Create FormData for file upload
+            const uploadData = new FormData();
+
+            // Add each validated photo
+            validatedPhotos.forEach((photoData, index) => {
+                uploadData.append(`photos`, photoData.file);
+
+                // Create metadata for each photo
+                const metadata = {
+                    ...formData,
+                    coordinates: photoData.coordinates,
+                    originalFileName: photoData.name,
+                    uploadIndex: index
+                };
+
+                uploadData.append(`metadata_${index}`, JSON.stringify(metadata));
             });
 
+            // Add general form data
+            uploadData.append('spotData', JSON.stringify(formData));
+            uploadData.append('photoCount', validatedPhotos.length.toString());
+
+            // Submit to server
+            const response = await fetch(process.env.REACT_APP_SUBMISSION_API_URL, {
+                method: "POST",
+                body: uploadData // Don't set Content-Type header for FormData
+            });
+
+            if (response.ok) {
+                console.log("Submission successful!");
+                setSubmissionStatus(`Successfully uploaded ${validatedPhotos.length} photo(s)! Thank you for your submission.`);
+
+                // Reset form
+                setFormData({
+                    name: '',
+                    address: '',
+                    id: '',
+                    builder: '',
+                    sqft: '',
+                    lights: '',
+                    covered: '',
+                    url: '',
+                    elements: '',
+                    pinimage: '',
+                    latitude: '',
+                    longitude: '',
+                    group: ''
+                });
+                setPhotos([]);
+
+                // Reset file input
+                const fileInput = document.getElementById('photos');
+                if (fileInput) fileInput.value = '';
+
+            } else {
+                console.error("Submission failed.");
+                setSubmissionStatus("Submission failed, please try again");
+            }
+
+        } catch (error) {
+            console.error("An error occurred:", error);
+            setSubmissionStatus("An error occurred during submission");
+        }
     };
 
     return (
@@ -103,37 +178,58 @@ function SkateparkInputForm(props){
             <form onSubmit={handleSubmit}>
                 <table id="skateparkinputform">
                     <tr>
-                        <td><label htmlFor="name">name:</label><input onChange={handleInputChange} type="text" id="name" name="name" placeholder="skatepark name" value={formData.name} /></td>
-                    </tr>
-                    <tr>
-                        <td><label htmlFor="address">address:</label><input onChange={handleInputChange} type="text" id="address" name="address" placeholder="nearest address" value={formData.address}/></td>
-                    </tr>
-                    <tr>
-                        <td><label htmlFor="id">id:</label><input onChange={handleInputChange} type="text" id="id" name="id" placeholder="unique park id" value={formData.id}/></td>
-                    </tr>
-                    <tr>
-                        <td><label htmlFor="builder">builder:</label><input onChange={handleInputChange} type="text" id="builder" name="builder" placeholder="builder and/or designer" value={formData.builder}/></td>
-                    </tr>
-                    <tr>
-                        <td><label htmlFor="sqft">sqft:</label><input onChange={handleInputChange} type="text" id="sqft" name="sqft" placeholder="square feet of the park" value={formData.sqft}/></td>
-                    </tr>
-                    <tr>
-                        <td><label htmlFor="lights">lights:</label><input onChange={handleInputChange} type="text" id="lights" name="lights" placeholder="lights? yes, no, complicated?" value={formData.lights}/></td>
-                    </tr>
-                    <tr>
-                        <td><label htmlFor="covered">covered:</label><input onChange={handleInputChange} type="text" id="covered" name="covered" placeholder="covered? yes, no, complicated?" value={formData.covered}/></td>
-                    </tr>
-                    <tr>
-                        <td><label htmlFor="url">url:</label><input onChange={handleInputChange} type="text" id="url" name="url" placeholder="website for more information" value={formData.url}/></td>
-                    </tr>
-                    <tr>
-                        <td><label htmlFor="elements">elements:</label><input onChange={handleInputChange} type="text" id="elements" name="elements" placeholder="description of park. transition? street? elements?" value={formData.elements}/></td>
+                        <td colSpan="2">
+                            <h3>Upload Skate Spot Photos</h3>
+                            <p><strong>Required:</strong> Photos must contain GPS coordinates (geocoordinates) or they will be rejected.</p>
+                            <p><em>All fields below are optional - use them to provide additional context about the spot.</em></p>
+                        </td>
                     </tr>
                     <tr>
                         <td>
-                            <label htmlFor="pinimage">pinimage:</label>
-                            <select id="pinimage" name="pinimage" onChange={handleInputChange}>
-                                <option value="">Select a PIN IMAGE</option>
+                            <label htmlFor="photos"><strong>Photos*:</strong></label>
+                            <input
+                                onChange={handlePhotoUpload}
+                                type="file"
+                                id="photos"
+                                name="photos"
+                                accept="image/*"
+                                multiple
+                                required
+                            />
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><label htmlFor="name">Spot Name:</label><input onChange={handleInputChange} type="text" id="name" name="name" placeholder="skatepark/spot name" value={formData.name} /></td>
+                    </tr>
+                    <tr>
+                        <td><label htmlFor="address">Address:</label><input onChange={handleInputChange} type="text" id="address" name="address" placeholder="nearest address" value={formData.address}/></td>
+                    </tr>
+                    <tr>
+                        <td><label htmlFor="id">Spot ID:</label><input onChange={handleInputChange} type="text" id="id" name="id" placeholder="unique spot identifier" value={formData.id}/></td>
+                    </tr>
+                    <tr>
+                        <td><label htmlFor="builder">Builder:</label><input onChange={handleInputChange} type="text" id="builder" name="builder" placeholder="builder and/or designer" value={formData.builder}/></td>
+                    </tr>
+                    <tr>
+                        <td><label htmlFor="sqft">Square Feet:</label><input onChange={handleInputChange} type="text" id="sqft" name="sqft" placeholder="approximate size in sq ft" value={formData.sqft}/></td>
+                    </tr>
+                    <tr>
+                        <td><label htmlFor="lights">Lights:</label><input onChange={handleInputChange} type="text" id="lights" name="lights" placeholder="lighting available? (yes/no/partial)" value={formData.lights}/></td>
+                    </tr>
+                    <tr>
+                        <td><label htmlFor="covered">Covered:</label><input onChange={handleInputChange} type="text" id="covered" name="covered" placeholder="covered/indoor? (yes/no/partial)" value={formData.covered}/></td>
+                    </tr>
+                    <tr>
+                        <td><label htmlFor="url">Website:</label><input onChange={handleInputChange} type="text" id="url" name="url" placeholder="website or social media link" value={formData.url}/></td>
+                    </tr>
+                    <tr>
+                        <td><label htmlFor="elements">Description:</label><input onChange={handleInputChange} type="text" id="elements" name="elements" placeholder="features: transition, street, bowl, etc." value={formData.elements}/></td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <label htmlFor="pinimage">Pin Style:</label>
+                            <select id="pinimage" name="pinimage" onChange={handleInputChange} value={formData.pinimage}>
+                                <option value="">Select pin image (optional)</option>
                                 {uniquePin.map((pin, index) => (
                                     <option key={index} value={pin}>
                                         {pin}
@@ -143,19 +239,16 @@ function SkateparkInputForm(props){
                         </td>
                     </tr>
                     <tr>
-                        <td><label htmlFor="photos">photos:</label><input onChange={handleInputChange} type="text" id="photos" name="photos" placeholder="photo names (email to me)" value={formData.photos}/></td>
+                        <td><label htmlFor="latitude">Latitude:</label><input onChange={handleInputChange} type="text" id="latitude" name="latitude" placeholder="will be extracted from photos if present" value={formData.latitude} /></td>
                     </tr>
                     <tr>
-                        <td><label htmlFor="latitude">latitude:</label><input onChange={handleInputChange} type="text" id="latitude" name="latitude" placeholder="latitude" value={formData.latitude} /></td>
-                    </tr>
-                    <tr>
-                        <td><label htmlFor="longitude">longtitude:</label><input onChange={handleInputChange} type="text" id="longitude" name="longitude" placeholder="longitude" value={formData.longitude}/></td>
+                        <td><label htmlFor="longitude">Longitude:</label><input onChange={handleInputChange} type="text" id="longitude" name="longitude" placeholder="will be extracted from photos if present" value={formData.longitude}/></td>
                     </tr>
                     <tr>
                         <td>
-                            <label htmlFor="group">group:</label>
-                            <select id="group" name="group" onChange={handleInputChange}>
-                                <option value="">Select a Location</option>
+                            <label htmlFor="group">Location Group:</label>
+                            <select id="group" name="group" onChange={handleInputChange} value={formData.group}>
+                                <option value="">Select location group (optional)</option>
                                 {uniqueLocationGroup.map((code, index) => (
                                     <option key={index} value={code}>
                                         {code}
@@ -165,10 +258,14 @@ function SkateparkInputForm(props){
                         </td>
                     </tr>
                     <tr>
-                        <span>{submissionStatus}</span>
+                        <td>
+                            <div style={{padding: "10px", backgroundColor: "#f5f5f5", border: "1px solid #ddd", borderRadius: "4px"}}>
+                                <strong>Status:</strong> <span>{submissionStatus}</span>
+                            </div>
+                        </td>
                     </tr>
                     <tr>
-                        <td><input id="mySubmit" name="mySubmit" type="submit" value="Submit Park" disabled={false}/></td>
+                        <td><input id="mySubmit" name="mySubmit" type="submit" value="Upload Photos & Submit Spot" /></td>
                     </tr>
                 </table>
             </form>
