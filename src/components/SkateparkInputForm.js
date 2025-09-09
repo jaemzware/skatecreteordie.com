@@ -21,6 +21,7 @@ function SkateparkInputForm(props){
     const [submissionStatus, setSubmissionStatus] = useState("New Submission");
     const [uniquePin, setUniquePin] = useState([]);
     const [uniqueLocationGroup, setLocationGroup] = useState([]);
+    const [showOptionalFields, setShowOptionalFields] = useState(false);
 
     useEffect(() => {
         const uniqueInitialPins = [...new Set(props.fileListingArray.map(item => item.pinimage))];
@@ -288,17 +289,16 @@ function SkateparkInputForm(props){
     return (
         <>
             <form onSubmit={handleSubmit}>
-                <table id="skateparkinputform">
-                    <tr>
-                        <td colSpan="2">
-                            <h3>Upload Skate Spot Photos</h3>
-                            <p><strong>Required:</strong> Photos must contain GPS coordinates (geocoordinates) or they will be rejected.</p>
-                            <p><em>All fields below are optional - use them to provide additional context about the spot.</em></p>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td>
-                            <label htmlFor="photos"><strong>Photos*:</strong></label>
+                <div id="skateparkinputform" style={{maxWidth: '600px'}}>
+                    {/* Main Section - Prominent */}
+                    <div style={{marginBottom: '20px', padding: '20px', border: '2px solid #007cba', borderRadius: '8px', backgroundColor: '#f8f9fa'}}>
+                        <h3 style={{margin: '0 0 15px 0', color: '#007cba'}}>Upload Skate Spot Photos</h3>
+                        <p style={{margin: '0 0 15px 0', fontSize: '16px'}}><strong>Required:</strong> Photos with GPS coordinates (geocoordinates)</p>
+
+                        <div style={{marginBottom: '15px'}}>
+                            <label htmlFor="photos" style={{display: 'block', marginBottom: '5px', fontWeight: 'bold', fontSize: '16px'}}>
+                                Select Photos*:
+                            </label>
                             <input
                                 onChange={handlePhotoUpload}
                                 type="file"
@@ -307,73 +307,127 @@ function SkateparkInputForm(props){
                                 accept="image/*"
                                 multiple
                                 required
+                                style={{padding: '8px', fontSize: '14px', width: '100%', maxWidth: '400px'}}
                             />
-                        </td>
-                    </tr>
-                    <tr>
-                        <td><label htmlFor="name">Spot Name:</label><input onChange={handleInputChange} type="text" id="name" name="name" placeholder="skatepark/spot name" value={formData.name} /></td>
-                    </tr>
-                    <tr>
-                        <td><label htmlFor="address">Address:</label><input onChange={handleInputChange} type="text" id="address" name="address" placeholder="nearest address" value={formData.address}/></td>
-                    </tr>
-                    <tr>
-                        <td><label htmlFor="id">Spot ID:</label><input onChange={handleInputChange} type="text" id="id" name="id" placeholder="unique spot identifier" value={formData.id}/></td>
-                    </tr>
-                    <tr>
-                        <td><label htmlFor="builder">Builder:</label><input onChange={handleInputChange} type="text" id="builder" name="builder" placeholder="builder and/or designer" value={formData.builder}/></td>
-                    </tr>
-                    <tr>
-                        <td><label htmlFor="sqft">Square Feet:</label><input onChange={handleInputChange} type="text" id="sqft" name="sqft" placeholder="approximate size in sq ft" value={formData.sqft}/></td>
-                    </tr>
-                    <tr>
-                        <td><label htmlFor="lights">Lights:</label><input onChange={handleInputChange} type="text" id="lights" name="lights" placeholder="lighting available? (yes/no/partial)" value={formData.lights}/></td>
-                    </tr>
-                    <tr>
-                        <td><label htmlFor="covered">Covered:</label><input onChange={handleInputChange} type="text" id="covered" name="covered" placeholder="covered/indoor? (yes/no/partial)" value={formData.covered}/></td>
-                    </tr>
-                    <tr>
-                        <td><label htmlFor="url">Website:</label><input onChange={handleInputChange} type="text" id="url" name="url" placeholder="website or social media link" value={formData.url}/></td>
-                    </tr>
-                    <tr>
-                        <td><label htmlFor="elements">Description:</label><input onChange={handleInputChange} type="text" id="elements" name="elements" placeholder="features: transition, street, bowl, etc." value={formData.elements}/></td>
-                    </tr>
-                    <tr>
-                        <td>
-                            <label htmlFor="pinimage">Pin Style:</label>
-                            <select id="pinimage" name="pinimage" onChange={handleInputChange} value={formData.pinimage}>
-                                <option value="">Select pin image (optional)</option>
-                                {uniquePin.map((pin, index) => (
-                                    <option key={index} value={pin}>
-                                        {pin}
-                                    </option>
-                                ))}
-                            </select>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td>
-                            <label htmlFor="group">Location Group:</label>
-                            <select id="group" name="group" onChange={handleInputChange} value={formData.group}>
-                                <option value="">Select location group (optional)</option>
-                                {uniqueLocationGroup.map((code, index) => (
-                                    <option key={index} value={code}>
-                                        {code}
-                                    </option>
-                                ))}
-                            </select>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td>
-                            <div style={{padding: "10px", backgroundColor: "#f5f5f5", border: "1px solid #ddd", borderRadius: "4px"}}>
-                                <strong>Status:</strong> <span>{submissionStatus}</span>
+                        </div>
+
+                        <div style={{padding: "10px", backgroundColor: "#e9ecef", border: "1px solid #dee2e6", borderRadius: "4px", marginBottom: '15px'}}>
+                            <strong>Status:</strong> <span>{submissionStatus}</span>
+                        </div>
+
+                        <input
+                            id="mySubmit"
+                            name="mySubmit"
+                            type="submit"
+                            value="Upload Photos & Submit Spot"
+                            style={{
+                                padding: '12px 24px',
+                                fontSize: '16px',
+                                fontWeight: 'bold',
+                                backgroundColor: '#007cba',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '4px',
+                                cursor: 'pointer'
+                            }}
+                        />
+                    </div>
+
+                    {/* Optional Fields - Less Prominent */}
+                    <div style={{marginBottom: '20px'}}>
+                        <button
+                            type="button"
+                            onClick={() => setShowOptionalFields(!showOptionalFields)}
+                            style={{
+                                background: 'none',
+                                border: '1px solid #ccc',
+                                padding: '8px 12px',
+                                borderRadius: '4px',
+                                cursor: 'pointer',
+                                fontSize: '14px',
+                                color: '#666'
+                            }}
+                        >
+                            {showOptionalFields ? '− Hide' : '+ Show'} Optional Details
+                        </button>
+                        <span style={{marginLeft: '10px', fontSize: '13px', color: '#888'}}>
+                            (spot name, address, features, etc.)
+                        </span>
+                    </div>
+
+                    {showOptionalFields && (
+                        <div style={{padding: '15px', backgroundColor: '#f8f9fa', border: '1px solid #e9ecef', borderRadius: '4px'}}>
+                            <h4 style={{margin: '0 0 15px 0', fontSize: '16px', color: '#666'}}>Optional Information</h4>
+
+                            <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '10px'}}>
+                                <div>
+                                    <label htmlFor="name" style={{display: 'block', fontSize: '13px', color: '#666', marginBottom: '3px'}}>Spot Name:</label>
+                                    <input onChange={handleInputChange} type="text" id="name" name="name" placeholder="skatepark/spot name" value={formData.name} style={{width: '100%', padding: '6px', fontSize: '13px'}} />
+                                </div>
+                                <div>
+                                    <label htmlFor="address" style={{display: 'block', fontSize: '13px', color: '#666', marginBottom: '3px'}}>Address:</label>
+                                    <input onChange={handleInputChange} type="text" id="address" name="address" placeholder="nearest address" value={formData.address} style={{width: '100%', padding: '6px', fontSize: '13px'}} />
+                                </div>
                             </div>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td><input id="mySubmit" name="mySubmit" type="submit" value="Upload Photos & Submit Spot" /></td>
-                    </tr>
-                </table>
+
+                            <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '10px'}}>
+                                <div>
+                                    <label htmlFor="elements" style={{display: 'block', fontSize: '13px', color: '#666', marginBottom: '3px'}}>Features:</label>
+                                    <input onChange={handleInputChange} type="text" id="elements" name="elements" placeholder="transition, street, bowl, etc." value={formData.elements} style={{width: '100%', padding: '6px', fontSize: '13px'}} />
+                                </div>
+                                <div>
+                                    <label htmlFor="builder" style={{display: 'block', fontSize: '13px', color: '#666', marginBottom: '3px'}}>Builder:</label>
+                                    <input onChange={handleInputChange} type="text" id="builder" name="builder" placeholder="builder and/or designer" value={formData.builder} style={{width: '100%', padding: '6px', fontSize: '13px'}} />
+                                </div>
+                            </div>
+
+                            <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px', marginBottom: '10px'}}>
+                                <div>
+                                    <label htmlFor="sqft" style={{display: 'block', fontSize: '13px', color: '#666', marginBottom: '3px'}}>Size (sq ft):</label>
+                                    <input onChange={handleInputChange} type="text" id="sqft" name="sqft" placeholder="approximate size" value={formData.sqft} style={{width: '100%', padding: '6px', fontSize: '13px'}} />
+                                </div>
+                                <div>
+                                    <label htmlFor="lights" style={{display: 'block', fontSize: '13px', color: '#666', marginBottom: '3px'}}>Lights:</label>
+                                    <input onChange={handleInputChange} type="text" id="lights" name="lights" placeholder="yes/no/partial" value={formData.lights} style={{width: '100%', padding: '6px', fontSize: '13px'}} />
+                                </div>
+                                <div>
+                                    <label htmlFor="covered" style={{display: 'block', fontSize: '13px', color: '#666', marginBottom: '3px'}}>Covered:</label>
+                                    <input onChange={handleInputChange} type="text" id="covered" name="covered" placeholder="yes/no/partial" value={formData.covered} style={{width: '100%', padding: '6px', fontSize: '13px'}} />
+                                </div>
+                            </div>
+
+                            <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px'}}>
+                                <div>
+                                    <label htmlFor="url" style={{display: 'block', fontSize: '13px', color: '#666', marginBottom: '3px'}}>Website:</label>
+                                    <input onChange={handleInputChange} type="text" id="url" name="url" placeholder="website or social link" value={formData.url} style={{width: '100%', padding: '6px', fontSize: '13px'}} />
+                                </div>
+                                <div>
+                                    <label htmlFor="pinimage" style={{display: 'block', fontSize: '13px', color: '#666', marginBottom: '3px'}}>Pin Style:</label>
+                                    <select id="pinimage" name="pinimage" onChange={handleInputChange} value={formData.pinimage} style={{width: '100%', padding: '6px', fontSize: '13px'}}>
+                                        <option value="">Select pin image</option>
+                                        {uniquePin.map((pin, index) => (
+                                            <option key={index} value={pin}>{pin}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label htmlFor="group" style={{display: 'block', fontSize: '13px', color: '#666', marginBottom: '3px'}}>Location Group:</label>
+                                    <select id="group" name="group" onChange={handleInputChange} value={formData.group} style={{width: '100%', padding: '6px', fontSize: '13px'}}>
+                                        <option value="">Select location group</option>
+                                        {uniqueLocationGroup.map((code, index) => (
+                                            <option key={index} value={code}>{code}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div style={{marginTop: '10px'}}>
+                                <label htmlFor="id" style={{display: 'block', fontSize: '13px', color: '#666', marginBottom: '3px'}}>Spot ID:</label>
+                                <input onChange={handleInputChange} type="text" id="id" name="id" placeholder="unique spot identifier" value={formData.id} style={{width: '100%', maxWidth: '200px', padding: '6px', fontSize: '13px'}} />
+                            </div>
+                        </div>
+                    )}
+                </div>
             </form>
         </>
     );
