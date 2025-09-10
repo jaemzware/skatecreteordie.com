@@ -75,7 +75,7 @@ function SkateparkInputForm(props){
 
                             if (exifData.getUint32(0) === 0x45786966) {
                                 gpsData = extractGPSFromEXIF(exifData);
-                                break;
+                                if (gpsData) break; // Stop on first valid GPS data found
                             }
                         }
 
@@ -84,15 +84,8 @@ function SkateparkInputForm(props){
                         offset += 2 + dataView.getUint16(offset + 2);
                     }
 
-                    // FIXED: Proper validation that checks for valid numeric coordinates
-                    if (gpsData &&
-                        gpsData.lat !== undefined &&
-                        gpsData.lng !== undefined &&
-                        !isNaN(gpsData.lat) &&
-                        !isNaN(gpsData.lng) &&
-                        gpsData.lat >= -90 && gpsData.lat <= 90 &&
-                        gpsData.lng >= -180 && gpsData.lng <= 180 &&
-                        !(gpsData.lat === 0 && gpsData.lng === 0)) {
+                    // Use enhanced validation
+                    if (isValidGPSCoordinates(gpsData)) {
                         resolve(gpsData);
                     } else {
                         reject('No valid GPS coordinates found in image');
@@ -143,53 +136,123 @@ function SkateparkInputForm(props){
     };
 
     const parseGPSIFD = (gpsIfd, littleEndian) => {
-        const numEntries = gpsIfd.getUint16(0, littleEndian);
-        let latitude = null, longitude = null, latRef = null, lngRef = null;
+        try {
+            const numEntries = gpsIfd.getUint16(0, littleEndian);
+            let latitude = null, longitude = null, latRef = null, lngRef = null;
 
-        for (let i = 0; i < numEntries; i++) {
-            const entryOffset = 2 + (i * 12);
-            const tag = gpsIfd.getUint16(entryOffset, littleEndian);
+            for (let i = 0; i < numEntries; i++) {
+                const entryOffset = 2 + (i * 12);
+                const tag = gpsIfd.getUint16(entryOffset, littleEndian);
+                const format = gpsIfd.getUint16(entryOffset + 2, littleEndian);
+                const count = gpsIfd.getUint32(entryOffset + 4, littleEndian);
 
-            switch (tag) {
-                case 1:
-                    latRef = String.fromCharCode(gpsIfd.getUint8(entryOffset + 8));
-                    break;
-                case 2:
-                    latitude = parseGPSCoordinate(gpsIfd, gpsIfd.getUint32(entryOffset + 8, littleEndian), littleEndian);
-                    break;
-                case 3:
-                    lngRef = String.fromCharCode(gpsIfd.getUint8(entryOffset + 8));
-                    break;
-                case 4:
-                    longitude = parseGPSCoordinate(gpsIfd, gpsIfd.getUint32(entryOffset + 8, littleEndian), littleEndian);
-                    break;
+                switch (tag) {
+                    case 1: // GPSLatitudeRef
+                        latRef = String.fromCharCode(gpsIfd.getUint8(entryOffset + 8));
+                        break;
+                    case 2: // GPSLatitude
+                        if (format === 5 && count === 3) { // 5 = RATIONAL, 3 coordinates
+                            const coordOffset = gpsIfd.getUint32(entryOffset + 8, littleEndian);
+                            // Create new DataView for the coordinate data
+                            const coordData = new DataView(gpsIfd.buffer, gpsIfd.byteOffset + coordOffset);
+                            latitude = parseGPSCoordinate(coordData, 0, littleEndian);
+                        }
+                        break;
+                    case 3: // GPSLongitudeRef
+                        lngRef = String.fromCharCode(gpsIfd.getUint8(entryOffset + 8));
+                        break;
+                    case 4: // GPSLongitude
+                        if (format === 5 && count === 3) { // 5 = RATIONAL, 3 coordinates
+                            const coordOffset = gpsIfd.getUint32(entryOffset + 8, littleEndian);
+                            // Create new DataView for the coordinate data
+                            const coordData = new DataView(gpsIfd.buffer, gpsIfd.byteOffset + coordOffset);
+                            longitude = parseGPSCoordinate(coordData, 0, littleEndian);
+                        }
+                        break;
+                }
             }
+
+            if (latitude && longitude && latRef && lngRef) {
+                // Convert DMS to decimal degrees
+                let lat = latitude[0] + latitude[1]/60 + latitude[2]/3600;
+                let lng = longitude[0] + longitude[1]/60 + longitude[2]/3600;
+
+                // Apply direction
+                if (latRef === 'S') lat = -lat;
+                if (lngRef === 'W') lng = -lng;
+
+                // Additional validation
+                if (lat === 0 && lng === 0) {
+                    console.warn('GPS coordinates are exactly (0,0), likely invalid');
+                    return null;
+                }
+
+                return { lat, lng };
+            }
+
+            return null;
+        } catch (error) {
+            console.error('Error parsing GPS IFD:', error);
+            return null;
         }
-
-        if (latitude && longitude && latRef && lngRef) {
-            let lat = latitude[0] + latitude[1]/60 + latitude[2]/3600;
-            let lng = longitude[0] + longitude[1]/60 + longitude[2]/3600;
-
-            if (latRef === 'S') lat = -lat;
-            if (lngRef === 'W') lng = -lng;
-
-            return { lat, lng };
-        }
-
-        return null;
     };
 
     const parseGPSCoordinate = (gpsIfd, offset, littleEndian) => {
         try {
-            const degrees = gpsIfd.getUint32(offset, littleEndian) / gpsIfd.getUint32(offset + 4, littleEndian);
-            const minutes = gpsIfd.getUint32(offset + 8, littleEndian) / gpsIfd.getUint32(offset + 12, littleEndian);
-            const seconds = gpsIfd.getUint32(offset + 16, littleEndian) / gpsIfd.getUint32(offset + 20, littleEndian);
+            // GPS coordinates are stored as 3 rational values: degrees, minutes, seconds
+            // Each rational is 8 bytes (4 bytes numerator + 4 bytes denominator)
+
+            // Read degrees (first rational)
+            const degNum = gpsIfd.getUint32(offset, littleEndian);
+            const degDen = gpsIfd.getUint32(offset + 4, littleEndian);
+            const degrees = degDen !== 0 ? degNum / degDen : 0;
+
+            // Read minutes (second rational)
+            const minNum = gpsIfd.getUint32(offset + 8, littleEndian);
+            const minDen = gpsIfd.getUint32(offset + 12, littleEndian);
+            const minutes = minDen !== 0 ? minNum / minDen : 0;
+
+            // Read seconds (third rational)
+            const secNum = gpsIfd.getUint32(offset + 16, littleEndian);
+            const secDen = gpsIfd.getUint32(offset + 20, littleEndian);
+            const seconds = secDen !== 0 ? secNum / secDen : 0;
+
+            // Validate that we have reasonable values
+            if (degrees > 180 || minutes >= 60 || seconds >= 60) {
+                console.warn('Invalid GPS coordinate components:', { degrees, minutes, seconds });
+                return null;
+            }
 
             return [degrees, minutes, seconds];
         } catch (error) {
             console.error('Error parsing GPS coordinate:', error);
             return null;
         }
+    };
+
+    const isValidGPSCoordinates = (gpsData) => {
+        if (!gpsData ||
+            gpsData.lat === undefined ||
+            gpsData.lng === undefined ||
+            isNaN(gpsData.lat) ||
+            isNaN(gpsData.lng)) {
+            return false;
+        }
+
+        // Check valid coordinate ranges
+        if (gpsData.lat < -90 || gpsData.lat > 90 ||
+            gpsData.lng < -180 || gpsData.lng > 180) {
+            return false;
+        }
+
+        // Reject coordinates that are exactly (0,0) or very close to it
+        // This catches many cases of invalid/missing GPS data
+        if (Math.abs(gpsData.lat) < 0.001 && Math.abs(gpsData.lng) < 0.001) {
+            console.warn('GPS coordinates too close to (0,0), likely invalid');
+            return false;
+        }
+
+        return true;
     };
 
     const validatePhotos = async (files) => {
