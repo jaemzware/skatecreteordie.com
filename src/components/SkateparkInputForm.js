@@ -75,7 +75,6 @@ function SkateparkInputForm(props){
         });
     };
 
-// Fixed function - takes already-processed tags, not raw buffer
     function extractGPSFromImageTags(tags) {
         try {
             // Log all GPS-related tags for debugging
@@ -324,22 +323,22 @@ function SkateparkInputForm(props){
 
     const isValidGPSCoordinates = (gpsData) => {
         if (!gpsData ||
-            gpsData.lat === undefined ||
-            gpsData.lng === undefined ||
-            isNaN(gpsData.lat) ||
-            isNaN(gpsData.lng)) {
+            gpsData.latitude === undefined ||
+            gpsData.longitude === undefined ||
+            isNaN(gpsData.latitude) ||
+            isNaN(gpsData.longitude)) {
             return false;
         }
 
         // Check valid coordinate ranges
-        if (gpsData.lat < -90 || gpsData.lat > 90 ||
-            gpsData.lng < -180 || gpsData.lng > 180) {
+        if (gpsData.latitude < -90 || gpsData.latitude > 90 ||
+            gpsData.longitude < -180 || gpsData.longitude > 180) {
             return false;
         }
 
         // Reject coordinates that are exactly (0,0) or very close to it
         // This catches many cases of invalid/missing GPS data
-        if (Math.abs(gpsData.lat) < 0.001 && Math.abs(gpsData.lng) < 0.001) {
+        if (Math.abs(gpsData.latitude) < 0.001 && Math.abs(gpsData.longitude) < 0.001) {
             console.warn('GPS coordinates too close to (0,0), likely invalid');
             return false;
         }
