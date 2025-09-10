@@ -1,5 +1,6 @@
 import '../Submission.css';
 import { useState, useEffect }  from 'react';
+import ExifReader from 'exifreader';
 
 function SkateparkInputForm(props){
 
@@ -54,181 +55,272 @@ function SkateparkInputForm(props){
 
             reader.onload = function(e) {
                 try {
-                    const arrayBuffer = e.target.result;
-                    const dataView = new DataView(arrayBuffer);
+                    // Load the EXIF tags once
+                    const tags = ExifReader.load(e.target.result, {expanded: true});
 
-                    if (dataView.getUint16(0) !== 0xFFD8) {
-                        reject('Not a valid JPEG file');
-                        return;
-                    }
+                    // Pass the tags directly to the extraction function
+                    const gpsData = extractGPSFromImageTags(tags); // Changed function name
 
-                    let offset = 2;
-                    let marker;
-                    let gpsData = null;
-
-                    while (offset < dataView.byteLength) {
-                        marker = dataView.getUint16(offset);
-
-                        if (marker === 0xFFE1) {
-                            const exifLength = dataView.getUint16(offset + 2);
-                            const exifData = new DataView(arrayBuffer, offset + 4, exifLength - 2);
-
-                            if (exifData.getUint32(0) === 0x45786966) {
-                                gpsData = extractGPSFromEXIF(exifData);
-                                if (gpsData) break; // Stop on first valid GPS data found
-                            }
-                        }
-
-                        if (marker === 0xFFDA) break;
-
-                        offset += 2 + dataView.getUint16(offset + 2);
-                    }
-
-                    // Use enhanced validation
-                    if (isValidGPSCoordinates(gpsData)) {
-                        resolve(gpsData);
+                    if (gpsData && isValidGPSCoordinates(gpsData)) {
+                        resolve({lat: gpsData.latitude, lng: gpsData.longitude});
                     } else {
-                        reject('No valid GPS coordinates found in image');
+                        reject('No valid GPS coordinates found');
                     }
-
                 } catch (error) {
                     reject('Error reading EXIF data: ' + error.message);
                 }
             };
 
-            reader.onerror = () => reject('Error reading file');
             reader.readAsArrayBuffer(file);
         });
     };
 
-    const extractGPSFromEXIF = (exifData) => {
+// Fixed function - takes already-processed tags, not raw buffer
+    function extractGPSFromImageTags(tags) {
         try {
-            let offset = 6;
-            const tiffHeader = new DataView(exifData.buffer, exifData.byteOffset + offset);
-
-            const byteOrder = tiffHeader.getUint16(0);
-            const littleEndian = byteOrder === 0x4949;
-
-            let ifdOffset = tiffHeader.getUint32(4, littleEndian);
-
-            while (ifdOffset !== 0) {
-                const ifd = new DataView(exifData.buffer, exifData.byteOffset + offset + ifdOffset);
-                const numEntries = ifd.getUint16(0, littleEndian);
-
-                for (let i = 0; i < numEntries; i++) {
-                    const entryOffset = 2 + (i * 12);
-                    const tag = ifd.getUint16(entryOffset, littleEndian);
-
-                    if (tag === 0x8825) {
-                        const gpsIfdOffset = ifd.getUint32(entryOffset + 8, littleEndian);
-                        return parseGPSIFD(new DataView(exifData.buffer, exifData.byteOffset + offset + gpsIfdOffset), littleEndian);
-                    }
+            // Log all GPS-related tags for debugging
+            console.log('All GPS-related tags found:');
+            Object.keys(tags).forEach(key => {
+                if (key.toLowerCase().includes('gps') || key.toLowerCase().includes('location')) {
+                    console.log(`${key}:`, tags[key]);
                 }
+            });
 
-                ifdOffset = ifd.getUint32(2 + (numEntries * 12), littleEndian);
+            // Try different possible GPS tag locations
+            let gpsData = null;
+
+            // Method 1: Standard GPS tags
+            if (tags.GPSLatitude && tags.GPSLongitude && tags.GPSLatitudeRef && tags.GPSLongitudeRef) {
+                console.log('Trying standard GPS tags...');
+                gpsData = extractFromStandardGPS(tags);
             }
 
-            return null;
-        } catch (error) {
-            console.error('Error parsing EXIF GPS data:', error);
-            return null;
-        }
-    };
-
-    const parseGPSIFD = (gpsIfd, littleEndian) => {
-        try {
-            const numEntries = gpsIfd.getUint16(0, littleEndian);
-            let latitude = null, longitude = null, latRef = null, lngRef = null;
-
-            for (let i = 0; i < numEntries; i++) {
-                const entryOffset = 2 + (i * 12);
-                const tag = gpsIfd.getUint16(entryOffset, littleEndian);
-                const format = gpsIfd.getUint16(entryOffset + 2, littleEndian);
-                const count = gpsIfd.getUint32(entryOffset + 4, littleEndian);
-
-                switch (tag) {
-                    case 1: // GPSLatitudeRef
-                        latRef = String.fromCharCode(gpsIfd.getUint8(entryOffset + 8));
-                        break;
-                    case 2: // GPSLatitude
-                        if (format === 5 && count === 3) { // 5 = RATIONAL, 3 coordinates
-                            const coordOffset = gpsIfd.getUint32(entryOffset + 8, littleEndian);
-                            // Create new DataView for the coordinate data
-                            const coordData = new DataView(gpsIfd.buffer, gpsIfd.byteOffset + coordOffset);
-                            latitude = parseGPSCoordinate(coordData, 0, littleEndian);
-                        }
-                        break;
-                    case 3: // GPSLongitudeRef
-                        lngRef = String.fromCharCode(gpsIfd.getUint8(entryOffset + 8));
-                        break;
-                    case 4: // GPSLongitude
-                        if (format === 5 && count === 3) { // 5 = RATIONAL, 3 coordinates
-                            const coordOffset = gpsIfd.getUint32(entryOffset + 8, littleEndian);
-                            // Create new DataView for the coordinate data
-                            const coordData = new DataView(gpsIfd.buffer, gpsIfd.byteOffset + coordOffset);
-                            longitude = parseGPSCoordinate(coordData, 0, littleEndian);
-                        }
-                        break;
-                }
+            // Method 2: Check gps sub-object (common in some libraries)
+            if (!gpsData && tags.gps) {
+                console.log('Trying GPS sub-object...');
+                gpsData = extractFromGPSSubObject(tags.gps);
             }
 
-            if (latitude && longitude && latRef && lngRef) {
-                // Convert DMS to decimal degrees
-                let lat = latitude[0] + latitude[1]/60 + latitude[2]/3600;
-                let lng = longitude[0] + longitude[1]/60 + longitude[2]/3600;
+            // Method 3: Check for decimal degree format (some Android apps store it this way)
+            if (!gpsData && (tags.GPSLatitude || tags.GPS)) {
+                console.log('Trying decimal format...');
+                gpsData = extractFromDecimalFormat(tags);
+            }
 
-                // Apply direction
-                if (latRef === 'S') lat = -lat;
-                if (lngRef === 'W') lng = -lng;
+            // Method 4: Check expanded format
+            if (!gpsData && tags.exif && tags.exif.GPS) {
+                console.log('Trying EXIF GPS sub-object...');
+                gpsData = extractFromGPSSubObject(tags.exif.GPS);
+            }
 
-                // Additional validation
-                if (lat === 0 && lng === 0) {
-                    console.warn('GPS coordinates are exactly (0,0), likely invalid');
+            if (gpsData) {
+                // Validate coordinates
+                if (isNaN(gpsData.latitude) || isNaN(gpsData.longitude) ||
+                    gpsData.latitude < -90 || gpsData.latitude > 90 ||
+                    gpsData.longitude < -180 || gpsData.longitude > 180 ||
+                    (gpsData.latitude === 0 && gpsData.longitude === 0)) {
+                    console.log('Invalid coordinates detected:', gpsData);
                     return null;
                 }
 
-                return { lat, lng };
+                console.log('Valid GPS coordinates found:', gpsData);
+                return gpsData;
             }
 
+            console.log('No valid GPS coordinates found in any format');
             return null;
         } catch (error) {
-            console.error('Error parsing GPS IFD:', error);
+            console.error('Error extracting GPS data:', error);
             return null;
         }
-    };
+    }
 
-    const parseGPSCoordinate = (gpsIfd, offset, littleEndian) => {
+    function extractFromStandardGPS(tags) {
         try {
-            // GPS coordinates are stored as 3 rational values: degrees, minutes, seconds
-            // Each rational is 8 bytes (4 bytes numerator + 4 bytes denominator)
+            let lat = convertDMSToDD(tags.GPSLatitude.value, tags.GPSLatitudeRef.value);
+            let lng = convertDMSToDD(tags.GPSLongitude.value, tags.GPSLongitudeRef.value);
 
-            // Read degrees (first rational)
-            const degNum = gpsIfd.getUint32(offset, littleEndian);
-            const degDen = gpsIfd.getUint32(offset + 4, littleEndian);
-            const degrees = degDen !== 0 ? degNum / degDen : 0;
+            if (!isNaN(lat) && !isNaN(lng)) {
+                return { latitude: lat, longitude: lng };
+            }
+        } catch (error) {
+            console.log('Standard GPS extraction failed:', error);
+        }
+        return null;
+    }
 
-            // Read minutes (second rational)
-            const minNum = gpsIfd.getUint32(offset + 8, littleEndian);
-            const minDen = gpsIfd.getUint32(offset + 12, littleEndian);
-            const minutes = minDen !== 0 ? minNum / minDen : 0;
-
-            // Read seconds (third rational)
-            const secNum = gpsIfd.getUint32(offset + 16, littleEndian);
-            const secDen = gpsIfd.getUint32(offset + 20, littleEndian);
-            const seconds = secDen !== 0 ? secNum / secDen : 0;
-
-            // Validate that we have reasonable values
-            if (degrees > 180 || minutes >= 60 || seconds >= 60) {
-                console.warn('Invalid GPS coordinate components:', { degrees, minutes, seconds });
-                return null;
+    function extractFromGPSSubObject(gpsObj) {
+        try {
+            // Check for simple decimal coordinates first (common format)
+            if (gpsObj.Latitude && gpsObj.Longitude &&
+                typeof gpsObj.Latitude === 'number' && typeof gpsObj.Longitude === 'number') {
+                console.log('Found simple decimal GPS coordinates:', gpsObj.Latitude, gpsObj.Longitude);
+                return { latitude: gpsObj.Latitude, longitude: gpsObj.Longitude };
             }
 
-            return [degrees, minutes, seconds];
+            // Check for different property names with complex structures
+            const latProps = ['Latitude', 'latitude', 'GPSLatitude'];
+            const lngProps = ['Longitude', 'longitude', 'GPSLongitude'];
+            const latRefProps = ['LatitudeRef', 'latitudeRef', 'GPSLatitudeRef'];
+            const lngRefProps = ['LongitudeRef', 'longitudeRef', 'GPSLongitudeRef'];
+
+            let lat, lng, latRef, lngRef;
+
+            // Find latitude
+            for (const prop of latProps) {
+                if (gpsObj[prop]) {
+                    lat = gpsObj[prop].value || gpsObj[prop];
+                    break;
+                }
+            }
+
+            // Find longitude
+            for (const prop of lngProps) {
+                if (gpsObj[prop]) {
+                    lng = gpsObj[prop].value || gpsObj[prop];
+                    break;
+                }
+            }
+
+            // Find latitude reference
+            for (const prop of latRefProps) {
+                if (gpsObj[prop]) {
+                    latRef = gpsObj[prop].value || gpsObj[prop];
+                    break;
+                }
+            }
+
+            // Find longitude reference
+            for (const prop of lngRefProps) {
+                if (gpsObj[prop]) {
+                    lngRef = gpsObj[prop].value || gpsObj[prop];
+                    break;
+                }
+            }
+
+            if (lat && lng && latRef && lngRef) {
+                let latDecimal = convertDMSToDD(lat, latRef);
+                let lngDecimal = convertDMSToDD(lng, lngRef);
+
+                if (!isNaN(latDecimal) && !isNaN(lngDecimal)) {
+                    return { latitude: latDecimal, longitude: lngDecimal };
+                }
+            }
         } catch (error) {
-            console.error('Error parsing GPS coordinate:', error);
-            return null;
+            console.log('GPS sub-object extraction failed:', error);
         }
-    };
+        return null;
+    }
+
+    function extractFromDecimalFormat(tags) {
+        try {
+            // Some Android apps store GPS as decimal degrees directly
+            let lat, lng;
+
+            // Check various possible decimal degree formats
+            if (tags.GPSLatitude && typeof tags.GPSLatitude.value === 'number') {
+                lat = tags.GPSLatitude.value;
+            } else if (tags.GPSLatitude && tags.GPSLatitude.description && !isNaN(parseFloat(tags.GPSLatitude.description))) {
+                lat = parseFloat(tags.GPSLatitude.description);
+            }
+
+            if (tags.GPSLongitude && typeof tags.GPSLongitude.value === 'number') {
+                lng = tags.GPSLongitude.value;
+            } else if (tags.GPSLongitude && tags.GPSLongitude.description && !isNaN(parseFloat(tags.GPSLongitude.description))) {
+                lng = parseFloat(tags.GPSLongitude.description);
+            }
+
+            // Apply direction references if available
+            if (lat && lng) {
+                if (tags.GPSLatitudeRef && (tags.GPSLatitudeRef.value === 'S' || tags.GPSLatitudeRef.value === ['S'])) {
+                    lat = -Math.abs(lat);
+                }
+                if (tags.GPSLongitudeRef && (tags.GPSLongitudeRef.value === 'W' || tags.GPSLongitudeRef.value === ['W'])) {
+                    lng = -Math.abs(lng);
+                }
+
+                return { latitude: lat, longitude: lng };
+            }
+        } catch (error) {
+            console.log('Decimal format extraction failed:', error);
+        }
+        return null;
+    }
+
+    function convertDMSToDD(dms, ref) {
+        console.log('Converting DMS:', dms, 'Ref:', ref, 'Ref type:', typeof ref);
+
+        // Validate inputs first
+        if (!dms || !ref) {
+            console.error('Missing DMS or reference data');
+            return NaN;
+        }
+
+        // Handle different possible formats
+        let degrees, minutes, seconds;
+
+        if (Array.isArray(dms) && dms.length >= 3) {
+            // EXIF format: array of [numerator, denominator] pairs
+            try {
+                degrees = dms[0][0] / dms[0][1]; // degrees
+                minutes = dms[1][0] / dms[1][1]; // minutes
+                seconds = dms[2][0] / dms[2][1]; // seconds
+
+                // Check for division by zero or invalid values
+                if (!isFinite(degrees) || !isFinite(minutes) || !isFinite(seconds)) {
+                    console.error('Invalid DMS values after division:', { degrees, minutes, seconds });
+                    return NaN;
+                }
+            } catch (error) {
+                console.error('Error parsing DMS array:', error);
+                return NaN;
+            }
+        } else {
+            console.error('Unexpected DMS format:', typeof dms, dms);
+            return NaN;
+        }
+
+        console.log('Parsed DMS values:', { degrees, minutes, seconds });
+
+        // Convert to decimal degrees
+        let dd = degrees + (minutes / 60) + (seconds / 3600);
+
+        console.log('Decimal degrees before direction:', dd);
+
+        // Extract the actual direction character from the reference
+        let direction;
+        if (Array.isArray(ref)) {
+            if (ref.length === 0) {
+                console.error('Empty reference array');
+                return NaN;
+            }
+            direction = ref[0]; // Get first element if it's an array
+        } else if (typeof ref === 'string') {
+            direction = ref;
+        } else {
+            console.error('Invalid reference format:', typeof ref, ref);
+            return NaN;
+        }
+
+        console.log('Reference direction after extraction:', direction);
+
+        // Validate direction
+        if (!direction || !['N', 'S', 'E', 'W'].includes(direction)) {
+            console.error('Invalid direction reference:', direction);
+            return NaN;
+        }
+
+        // Apply direction (South and West are negative)
+        if (direction === 'S' || direction === 'W') {
+            dd = dd * -1;
+            console.log('Applied negative for', direction, 'result:', dd);
+        } else {
+            console.log('No negative applied for', direction);
+        }
+
+        console.log('Final decimal degrees:', dd);
+        return dd;
+    }
 
     const isValidGPSCoordinates = (gpsData) => {
         if (!gpsData ||
