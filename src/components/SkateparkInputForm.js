@@ -261,10 +261,15 @@ function SkateparkInputForm(props){
                 body: uploadData
             });
 
-            if (response.ok) {
-                console.log("Submission successful!");
-                setSubmissionStatus(`Successfully uploaded ${validatedPhotos.length} photo(s)! Thank you for your submission.`);
+            // Parse the response
+            const responseData = await response.json();
 
+            if (response.ok && responseData.success) {
+                // Success case
+                console.log("Submission successful!");
+                setSubmissionStatus(`Successfully uploaded ${responseData.processed} photo(s)! Thank you for your submission.`);
+
+                // Reset form
                 setFormData({
                     name: '',
                     address: '',
@@ -284,13 +289,30 @@ function SkateparkInputForm(props){
                 if (fileInput) fileInput.value = '';
 
             } else {
-                console.error("Submission failed.");
-                setSubmissionStatus("Submission failed, please try again");
+                // Server returned an error response
+                console.error("Submission failed with server error:", responseData);
+
+                let errorMessage = "Submission failed";
+
+                if (responseData.error) {
+                    errorMessage = responseData.error;
+                } else if (responseData.message) {
+                    errorMessage = responseData.message;
+                } else if (responseData.errors && responseData.errors.length > 0) {
+                    errorMessage = `Upload failed: ${responseData.errors.join(', ')}`;
+                }
+
+                // Show specific error about GPS data if no photos were processed
+                if (responseData.processed === 0 && responseData.total > 0) {
+                    errorMessage = `No photos could be uploaded. All ${responseData.total} photo(s) are missing GPS coordinates. Please ensure location services are enabled in your camera app and take photos outdoors with clear GPS signal.`;
+                }
+
+                setSubmissionStatus(errorMessage);
             }
 
         } catch (error) {
-            console.error("An error occurred:", error);
-            setSubmissionStatus("An error occurred during submission");
+            console.error("Network or parsing error:", error);
+            setSubmissionStatus("Network error occurred during submission. Please check your connection and try again.");
         }
     };
 
