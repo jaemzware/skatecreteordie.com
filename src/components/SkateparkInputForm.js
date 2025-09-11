@@ -79,6 +79,10 @@ function SkateparkInputForm(props){
 
     function extractGPSFromImageTags(tags) {
         try {
+            // Enhanced debugging for Android photos
+            console.log('=== DEBUGGING GPS EXTRACTION ===');
+            console.log('All available tags:', Object.keys(tags));
+
             // Log all GPS-related tags for debugging
             console.log('All GPS-related tags found:');
             Object.keys(tags).forEach(key => {
@@ -86,6 +90,27 @@ function SkateparkInputForm(props){
                     console.log(`${key}:`, tags[key]);
                 }
             });
+
+            // Check for Android-specific location tags
+            console.log('Checking Android-specific tags...');
+            const androidTags = ['GPSInfo', 'GPS', 'Location', 'GeoLocation'];
+            androidTags.forEach(tag => {
+                if (tags[tag]) {
+                    console.log(`Found Android tag ${tag}:`, tags[tag]);
+                }
+            });
+
+            // Check for nested GPS in different structures
+            if (tags.exif) {
+                console.log('EXIF structure found:', Object.keys(tags.exif));
+                if (tags.exif.GPS) {
+                    console.log('EXIF.GPS found:', tags.exif.GPS);
+                }
+            }
+
+            if (tags.ifd0) {
+                console.log('IFD0 structure found:', Object.keys(tags.ifd0));
+            }
 
             // Try different possible GPS tag locations
             let gpsData = null;
@@ -112,6 +137,54 @@ function SkateparkInputForm(props){
             if (!gpsData && tags.exif && tags.exif.GPS) {
                 console.log('Trying EXIF GPS sub-object...');
                 gpsData = extractFromGPSSubObject(tags.exif.GPS);
+            }
+
+            // Method 5: FIXED Android EXIF GPS extraction
+            if (!gpsData && tags.exif && tags.exif.GPSLatitude && tags.exif.GPSLongitude) {
+                console.log('Trying Android EXIF GPS description fields...');
+                console.log('=== DETAILED GPS TAG INSPECTION ===');
+                console.log('GPSLatitude full object:', tags.exif.GPSLatitude);
+                console.log('GPSLongitude full object:', tags.exif.GPSLongitude);
+                console.log('GPSLatitudeRef full object:', tags.exif.GPSLatitudeRef);
+                console.log('GPSLongitudeRef full object:', tags.exif.GPSLongitudeRef);
+
+                // Check all properties of each GPS tag
+                console.log('GPSLatitude properties:', Object.keys(tags.exif.GPSLatitude));
+                console.log('GPSLongitude properties:', Object.keys(tags.exif.GPSLongitude));
+
+                // Log each property's value
+                Object.keys(tags.exif.GPSLatitude).forEach(prop => {
+                    console.log(`GPSLatitude.${prop}:`, tags.exif.GPSLatitude[prop]);
+                });
+
+                Object.keys(tags.exif.GPSLongitude).forEach(prop => {
+                    console.log(`GPSLongitude.${prop}:`, tags.exif.GPSLongitude[prop]);
+                });
+
+                // Try description fields first (Android often puts readable coordinates here)
+                const latTag = tags.exif.GPSLatitude;
+                const lngTag = tags.exif.GPSLongitude;
+                const latRefTag = tags.exif.GPSLatitudeRef;
+                const lngRefTag = tags.exif.GPSLongitudeRef;
+
+                if (latTag.description && lngTag.description) {
+                    console.log('Found GPS descriptions:', latTag.description, lngTag.description);
+
+                    const latMatch = latTag.description.match(/[\d.]+/);
+                    const lngMatch = lngTag.description.match(/[\d.]+/);
+
+                    if (latMatch && lngMatch) {
+                        let lat = parseFloat(latMatch[0]);
+                        let lng = parseFloat(lngMatch[0]);
+
+                        // Apply direction
+                        if (latTag.description.includes('S') || (latRefTag && latRefTag.description === 'S')) lat = -lat;
+                        if (lngTag.description.includes('W') || (lngRefTag && lngRefTag.description === 'W')) lng = -lng;
+
+                        gpsData = { latitude: lat, longitude: lng };
+                        console.log('Successfully extracted from Android descriptions:', gpsData);
+                    }
+                }
             }
 
             if (gpsData) {
@@ -252,7 +325,7 @@ function SkateparkInputForm(props){
         console.log('Converting DMS:', dms, 'Ref:', ref, 'Ref type:', typeof ref);
 
         // Validate inputs first
-        if (!dms || !ref) {
+        if (!dms || (!ref && ref !== '')) {
             console.error('Missing DMS or reference data');
             return NaN;
         }
@@ -263,13 +336,24 @@ function SkateparkInputForm(props){
         if (Array.isArray(dms) && dms.length >= 3) {
             // EXIF format: array of [numerator, denominator] pairs
             try {
-                degrees = dms[0][0] / dms[0][1]; // degrees
-                minutes = dms[1][0] / dms[1][1]; // minutes
-                seconds = dms[2][0] / dms[2][1]; // seconds
+                // Handle potential zero denominators or invalid data
+                degrees = (dms[0] && dms[0][1] !== 0) ? dms[0][0] / dms[0][1] : 0;
+                minutes = (dms[1] && dms[1][1] !== 0) ? dms[1][0] / dms[1][1] : 0;
+                seconds = (dms[2] && dms[2][1] !== 0) ? dms[2][0] / dms[2][1] : 0;
 
                 // Check for division by zero or invalid values
                 if (!isFinite(degrees) || !isFinite(minutes) || !isFinite(seconds)) {
                     console.error('Invalid DMS values after division:', { degrees, minutes, seconds });
+
+                    // Try alternative: maybe it's already decimal degrees in the first element
+                    if (dms[0] && dms[0][1] !== 0) {
+                        const decimalValue = dms[0][0] / dms[0][1];
+                        if (isFinite(decimalValue) && decimalValue > 0 && decimalValue < 180) {
+                            console.log('Using decimal value from first element:', decimalValue);
+                            return decimalValue; // Return positive, we'll handle direction below
+                        }
+                    }
+
                     return NaN;
                 }
             } catch (error) {
@@ -285,38 +369,31 @@ function SkateparkInputForm(props){
 
         // Convert to decimal degrees
         let dd = degrees + (minutes / 60) + (seconds / 3600);
-
         console.log('Decimal degrees before direction:', dd);
 
-        // Extract the actual direction character from the reference
-        let direction;
+        // Handle direction reference - Android sometimes has empty arrays
+        let direction = null;
         if (Array.isArray(ref)) {
-            if (ref.length === 0) {
-                console.error('Empty reference array');
-                return NaN;
+            if (ref.length > 0) {
+                direction = ref[0];
+            } else {
+                console.log('Empty reference array - assuming positive coordinate');
+                return dd; // Return as-is, assuming positive
             }
-            direction = ref[0]; // Get first element if it's an array
         } else if (typeof ref === 'string') {
             direction = ref;
-        } else {
-            console.error('Invalid reference format:', typeof ref, ref);
-            return NaN;
+        } else if (ref && ref.value) {
+            direction = ref.value;
         }
 
         console.log('Reference direction after extraction:', direction);
 
-        // Validate direction
-        if (!direction || !['N', 'S', 'E', 'W'].includes(direction)) {
-            console.error('Invalid direction reference:', direction);
-            return NaN;
-        }
-
-        // Apply direction (South and West are negative)
-        if (direction === 'S' || direction === 'W') {
+        // Apply direction if we have it
+        if (direction && ['S', 'W'].includes(direction)) {
             dd = dd * -1;
             console.log('Applied negative for', direction, 'result:', dd);
         } else {
-            console.log('No negative applied for', direction);
+            console.log('No negative applied, result:', dd);
         }
 
         console.log('Final decimal degrees:', dd);
