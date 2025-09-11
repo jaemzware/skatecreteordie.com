@@ -61,6 +61,8 @@ function SkateparkInputForm(props){
                     // Pass the tags directly to the extraction function
                     const gpsData = extractGPSFromImageTags(tags); // Changed function name
 
+                    console.log('GPS data from extraction:', gpsData);
+
                     if (gpsData && isValidGPSCoordinates(gpsData)) {
                         resolve({lat: gpsData.latitude, lng: gpsData.longitude});
                     } else {
