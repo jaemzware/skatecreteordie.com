@@ -1,5 +1,6 @@
 import '../Submission.css';
 import { useState, useEffect }  from 'react';
+import ExifReader from 'exifreader';
 
 function SkateparkInputForm(props){
 
@@ -54,142 +55,374 @@ function SkateparkInputForm(props){
 
             reader.onload = function(e) {
                 try {
-                    const arrayBuffer = e.target.result;
-                    const dataView = new DataView(arrayBuffer);
+                    // Load the EXIF tags once
+                    const tags = ExifReader.load(e.target.result, {expanded: true});
 
-                    if (dataView.getUint16(0) !== 0xFFD8) {
-                        reject('Not a valid JPEG file');
-                        return;
-                    }
+                    // Pass the tags directly to the extraction function
+                    const gpsData = extractGPSFromImageTags(tags); // Changed function name
 
-                    let offset = 2;
-                    let marker;
-                    let gpsData = null;
+                    console.log('GPS data from extraction:', gpsData);
 
-                    while (offset < dataView.byteLength) {
-                        marker = dataView.getUint16(offset);
-
-                        if (marker === 0xFFE1) {
-                            const exifLength = dataView.getUint16(offset + 2);
-                            const exifData = new DataView(arrayBuffer, offset + 4, exifLength - 2);
-
-                            if (exifData.getUint32(0) === 0x45786966) {
-                                gpsData = extractGPSFromEXIF(exifData);
-                                break;
-                            }
-                        }
-
-                        if (marker === 0xFFDA) break;
-
-                        offset += 2 + dataView.getUint16(offset + 2);
-                    }
-
-                    // FIXED: Proper validation that checks for valid numeric coordinates
-                    if (gpsData &&
-                        gpsData.lat !== undefined &&
-                        gpsData.lng !== undefined &&
-                        !isNaN(gpsData.lat) &&
-                        !isNaN(gpsData.lng) &&
-                        gpsData.lat >= -90 && gpsData.lat <= 90 &&
-                        gpsData.lng >= -180 && gpsData.lng <= 180 &&
-                        !(gpsData.lat === 0 && gpsData.lng === 0)) {
-                        resolve(gpsData);
+                    if (gpsData && isValidGPSCoordinates(gpsData)) {
+                        resolve({lat: gpsData.latitude, lng: gpsData.longitude});
                     } else {
-                        reject('No valid GPS coordinates found in image');
+                        reject('No valid GPS coordinates found');
                     }
-
                 } catch (error) {
                     reject('Error reading EXIF data: ' + error.message);
                 }
             };
 
-            reader.onerror = () => reject('Error reading file');
             reader.readAsArrayBuffer(file);
         });
     };
 
-    const extractGPSFromEXIF = (exifData) => {
+    function extractGPSFromImageTags(tags) {
         try {
-            let offset = 6;
-            const tiffHeader = new DataView(exifData.buffer, exifData.byteOffset + offset);
+            // Enhanced debugging for Android photos
+            console.log('=== DEBUGGING GPS EXTRACTION ===');
+            console.log('All available tags:', Object.keys(tags));
 
-            const byteOrder = tiffHeader.getUint16(0);
-            const littleEndian = byteOrder === 0x4949;
+            // Log all GPS-related tags for debugging
+            console.log('All GPS-related tags found:');
+            Object.keys(tags).forEach(key => {
+                if (key.toLowerCase().includes('gps') || key.toLowerCase().includes('location')) {
+                    console.log(`${key}:`, tags[key]);
+                }
+            });
 
-            let ifdOffset = tiffHeader.getUint32(4, littleEndian);
+            // Check for Android-specific location tags
+            console.log('Checking Android-specific tags...');
+            const androidTags = ['GPSInfo', 'GPS', 'Location', 'GeoLocation'];
+            androidTags.forEach(tag => {
+                if (tags[tag]) {
+                    console.log(`Found Android tag ${tag}:`, tags[tag]);
+                }
+            });
 
-            while (ifdOffset !== 0) {
-                const ifd = new DataView(exifData.buffer, exifData.byteOffset + offset + ifdOffset);
-                const numEntries = ifd.getUint16(0, littleEndian);
+            // Check for nested GPS in different structures
+            if (tags.exif) {
+                console.log('EXIF structure found:', Object.keys(tags.exif));
+                if (tags.exif.GPS) {
+                    console.log('EXIF.GPS found:', tags.exif.GPS);
+                }
+            }
 
-                for (let i = 0; i < numEntries; i++) {
-                    const entryOffset = 2 + (i * 12);
-                    const tag = ifd.getUint16(entryOffset, littleEndian);
+            if (tags.ifd0) {
+                console.log('IFD0 structure found:', Object.keys(tags.ifd0));
+            }
 
-                    if (tag === 0x8825) {
-                        const gpsIfdOffset = ifd.getUint32(entryOffset + 8, littleEndian);
-                        return parseGPSIFD(new DataView(exifData.buffer, exifData.byteOffset + offset + gpsIfdOffset), littleEndian);
+            // Try different possible GPS tag locations
+            let gpsData = null;
+
+            // Method 1: Standard GPS tags
+            if (tags.GPSLatitude && tags.GPSLongitude && tags.GPSLatitudeRef && tags.GPSLongitudeRef) {
+                console.log('Trying standard GPS tags...');
+                gpsData = extractFromStandardGPS(tags);
+            }
+
+            // Method 2: Check gps sub-object (common in some libraries)
+            if (!gpsData && tags.gps) {
+                console.log('Trying GPS sub-object...');
+                gpsData = extractFromGPSSubObject(tags.gps);
+            }
+
+            // Method 3: Check for decimal degree format (some Android apps store it this way)
+            if (!gpsData && (tags.GPSLatitude || tags.GPS)) {
+                console.log('Trying decimal format...');
+                gpsData = extractFromDecimalFormat(tags);
+            }
+
+            // Method 4: Check expanded format
+            if (!gpsData && tags.exif && tags.exif.GPS) {
+                console.log('Trying EXIF GPS sub-object...');
+                gpsData = extractFromGPSSubObject(tags.exif.GPS);
+            }
+
+            // Method 5: FIXED Android EXIF GPS extraction
+            if (!gpsData && tags.exif && tags.exif.GPSLatitude && tags.exif.GPSLongitude) {
+                console.log('Trying Android EXIF GPS description fields...');
+                console.log('=== DETAILED GPS TAG INSPECTION ===');
+                console.log('GPSLatitude full object:', tags.exif.GPSLatitude);
+                console.log('GPSLongitude full object:', tags.exif.GPSLongitude);
+                console.log('GPSLatitudeRef full object:', tags.exif.GPSLatitudeRef);
+                console.log('GPSLongitudeRef full object:', tags.exif.GPSLongitudeRef);
+
+                // Check all properties of each GPS tag
+                console.log('GPSLatitude properties:', Object.keys(tags.exif.GPSLatitude));
+                console.log('GPSLongitude properties:', Object.keys(tags.exif.GPSLongitude));
+
+                // Log each property's value
+                Object.keys(tags.exif.GPSLatitude).forEach(prop => {
+                    console.log(`GPSLatitude.${prop}:`, tags.exif.GPSLatitude[prop]);
+                });
+
+                Object.keys(tags.exif.GPSLongitude).forEach(prop => {
+                    console.log(`GPSLongitude.${prop}:`, tags.exif.GPSLongitude[prop]);
+                });
+
+                // Try description fields first (Android often puts readable coordinates here)
+                const latTag = tags.exif.GPSLatitude;
+                const lngTag = tags.exif.GPSLongitude;
+                const latRefTag = tags.exif.GPSLatitudeRef;
+                const lngRefTag = tags.exif.GPSLongitudeRef;
+
+                if (latTag.description && lngTag.description) {
+                    console.log('Found GPS descriptions:', latTag.description, lngTag.description);
+
+                    const latMatch = latTag.description.match(/[\d.]+/);
+                    const lngMatch = lngTag.description.match(/[\d.]+/);
+
+                    if (latMatch && lngMatch) {
+                        let lat = parseFloat(latMatch[0]);
+                        let lng = parseFloat(lngMatch[0]);
+
+                        // Apply direction
+                        if (latTag.description.includes('S') || (latRefTag && latRefTag.description === 'S')) lat = -lat;
+                        if (lngTag.description.includes('W') || (lngRefTag && lngRefTag.description === 'W')) lng = -lng;
+
+                        gpsData = { latitude: lat, longitude: lng };
+                        console.log('Successfully extracted from Android descriptions:', gpsData);
                     }
                 }
-
-                ifdOffset = ifd.getUint32(2 + (numEntries * 12), littleEndian);
             }
 
+            if (gpsData) {
+                // Validate coordinates
+                if (isNaN(gpsData.latitude) || isNaN(gpsData.longitude) ||
+                    gpsData.latitude < -90 || gpsData.latitude > 90 ||
+                    gpsData.longitude < -180 || gpsData.longitude > 180 ||
+                    (gpsData.latitude === 0 && gpsData.longitude === 0)) {
+                    console.log('Invalid coordinates detected:', gpsData);
+                    return null;
+                }
+
+                console.log('Valid GPS coordinates found:', gpsData);
+                return gpsData;
+            }
+
+            console.log('No valid GPS coordinates found in any format');
             return null;
         } catch (error) {
-            console.error('Error parsing EXIF GPS data:', error);
+            console.error('Error extracting GPS data:', error);
             return null;
         }
-    };
+    }
 
-    const parseGPSIFD = (gpsIfd, littleEndian) => {
-        const numEntries = gpsIfd.getUint16(0, littleEndian);
-        let latitude = null, longitude = null, latRef = null, lngRef = null;
-
-        for (let i = 0; i < numEntries; i++) {
-            const entryOffset = 2 + (i * 12);
-            const tag = gpsIfd.getUint16(entryOffset, littleEndian);
-
-            switch (tag) {
-                case 1:
-                    latRef = String.fromCharCode(gpsIfd.getUint8(entryOffset + 8));
-                    break;
-                case 2:
-                    latitude = parseGPSCoordinate(gpsIfd, gpsIfd.getUint32(entryOffset + 8, littleEndian), littleEndian);
-                    break;
-                case 3:
-                    lngRef = String.fromCharCode(gpsIfd.getUint8(entryOffset + 8));
-                    break;
-                case 4:
-                    longitude = parseGPSCoordinate(gpsIfd, gpsIfd.getUint32(entryOffset + 8, littleEndian), littleEndian);
-                    break;
-            }
-        }
-
-        if (latitude && longitude && latRef && lngRef) {
-            let lat = latitude[0] + latitude[1]/60 + latitude[2]/3600;
-            let lng = longitude[0] + longitude[1]/60 + longitude[2]/3600;
-
-            if (latRef === 'S') lat = -lat;
-            if (lngRef === 'W') lng = -lng;
-
-            return { lat, lng };
-        }
-
-        return null;
-    };
-
-    const parseGPSCoordinate = (gpsIfd, offset, littleEndian) => {
+    function extractFromStandardGPS(tags) {
         try {
-            const degrees = gpsIfd.getUint32(offset, littleEndian) / gpsIfd.getUint32(offset + 4, littleEndian);
-            const minutes = gpsIfd.getUint32(offset + 8, littleEndian) / gpsIfd.getUint32(offset + 12, littleEndian);
-            const seconds = gpsIfd.getUint32(offset + 16, littleEndian) / gpsIfd.getUint32(offset + 20, littleEndian);
+            let lat = convertDMSToDD(tags.GPSLatitude.value, tags.GPSLatitudeRef.value);
+            let lng = convertDMSToDD(tags.GPSLongitude.value, tags.GPSLongitudeRef.value);
 
-            return [degrees, minutes, seconds];
+            if (!isNaN(lat) && !isNaN(lng)) {
+                return { latitude: lat, longitude: lng };
+            }
         } catch (error) {
-            console.error('Error parsing GPS coordinate:', error);
-            return null;
+            console.log('Standard GPS extraction failed:', error);
         }
+        return null;
+    }
+
+    function extractFromGPSSubObject(gpsObj) {
+        try {
+            // Check for simple decimal coordinates first (common format)
+            if (gpsObj.Latitude && gpsObj.Longitude &&
+                typeof gpsObj.Latitude === 'number' && typeof gpsObj.Longitude === 'number') {
+                console.log('Found simple decimal GPS coordinates:', gpsObj.Latitude, gpsObj.Longitude);
+                return { latitude: gpsObj.Latitude, longitude: gpsObj.Longitude };
+            }
+
+            // Check for different property names with complex structures
+            const latProps = ['Latitude', 'latitude', 'GPSLatitude'];
+            const lngProps = ['Longitude', 'longitude', 'GPSLongitude'];
+            const latRefProps = ['LatitudeRef', 'latitudeRef', 'GPSLatitudeRef'];
+            const lngRefProps = ['LongitudeRef', 'longitudeRef', 'GPSLongitudeRef'];
+
+            let lat, lng, latRef, lngRef;
+
+            // Find latitude
+            for (const prop of latProps) {
+                if (gpsObj[prop]) {
+                    lat = gpsObj[prop].value || gpsObj[prop];
+                    break;
+                }
+            }
+
+            // Find longitude
+            for (const prop of lngProps) {
+                if (gpsObj[prop]) {
+                    lng = gpsObj[prop].value || gpsObj[prop];
+                    break;
+                }
+            }
+
+            // Find latitude reference
+            for (const prop of latRefProps) {
+                if (gpsObj[prop]) {
+                    latRef = gpsObj[prop].value || gpsObj[prop];
+                    break;
+                }
+            }
+
+            // Find longitude reference
+            for (const prop of lngRefProps) {
+                if (gpsObj[prop]) {
+                    lngRef = gpsObj[prop].value || gpsObj[prop];
+                    break;
+                }
+            }
+
+            if (lat && lng && latRef && lngRef) {
+                let latDecimal = convertDMSToDD(lat, latRef);
+                let lngDecimal = convertDMSToDD(lng, lngRef);
+
+                if (!isNaN(latDecimal) && !isNaN(lngDecimal)) {
+                    return { latitude: latDecimal, longitude: lngDecimal };
+                }
+            }
+        } catch (error) {
+            console.log('GPS sub-object extraction failed:', error);
+        }
+        return null;
+    }
+
+    function extractFromDecimalFormat(tags) {
+        try {
+            // Some Android apps store GPS as decimal degrees directly
+            let lat, lng;
+
+            // Check various possible decimal degree formats
+            if (tags.GPSLatitude && typeof tags.GPSLatitude.value === 'number') {
+                lat = tags.GPSLatitude.value;
+            } else if (tags.GPSLatitude && tags.GPSLatitude.description && !isNaN(parseFloat(tags.GPSLatitude.description))) {
+                lat = parseFloat(tags.GPSLatitude.description);
+            }
+
+            if (tags.GPSLongitude && typeof tags.GPSLongitude.value === 'number') {
+                lng = tags.GPSLongitude.value;
+            } else if (tags.GPSLongitude && tags.GPSLongitude.description && !isNaN(parseFloat(tags.GPSLongitude.description))) {
+                lng = parseFloat(tags.GPSLongitude.description);
+            }
+
+            // Apply direction references if available
+            if (lat && lng) {
+                if (tags.GPSLatitudeRef && (tags.GPSLatitudeRef.value === 'S' || tags.GPSLatitudeRef.value === ['S'])) {
+                    lat = -Math.abs(lat);
+                }
+                if (tags.GPSLongitudeRef && (tags.GPSLongitudeRef.value === 'W' || tags.GPSLongitudeRef.value === ['W'])) {
+                    lng = -Math.abs(lng);
+                }
+
+                return { latitude: lat, longitude: lng };
+            }
+        } catch (error) {
+            console.log('Decimal format extraction failed:', error);
+        }
+        return null;
+    }
+
+    function convertDMSToDD(dms, ref) {
+        console.log('Converting DMS:', dms, 'Ref:', ref, 'Ref type:', typeof ref);
+
+        // Validate inputs first
+        if (!dms || (!ref && ref !== '')) {
+            console.error('Missing DMS or reference data');
+            return NaN;
+        }
+
+        // Handle different possible formats
+        let degrees, minutes, seconds;
+
+        if (Array.isArray(dms) && dms.length >= 3) {
+            // EXIF format: array of [numerator, denominator] pairs
+            try {
+                // Handle potential zero denominators or invalid data
+                degrees = (dms[0] && dms[0][1] !== 0) ? dms[0][0] / dms[0][1] : 0;
+                minutes = (dms[1] && dms[1][1] !== 0) ? dms[1][0] / dms[1][1] : 0;
+                seconds = (dms[2] && dms[2][1] !== 0) ? dms[2][0] / dms[2][1] : 0;
+
+                // Check for division by zero or invalid values
+                if (!isFinite(degrees) || !isFinite(minutes) || !isFinite(seconds)) {
+                    console.error('Invalid DMS values after division:', { degrees, minutes, seconds });
+
+                    // Try alternative: maybe it's already decimal degrees in the first element
+                    if (dms[0] && dms[0][1] !== 0) {
+                        const decimalValue = dms[0][0] / dms[0][1];
+                        if (isFinite(decimalValue) && decimalValue > 0 && decimalValue < 180) {
+                            console.log('Using decimal value from first element:', decimalValue);
+                            return decimalValue; // Return positive, we'll handle direction below
+                        }
+                    }
+
+                    return NaN;
+                }
+            } catch (error) {
+                console.error('Error parsing DMS array:', error);
+                return NaN;
+            }
+        } else {
+            console.error('Unexpected DMS format:', typeof dms, dms);
+            return NaN;
+        }
+
+        console.log('Parsed DMS values:', { degrees, minutes, seconds });
+
+        // Convert to decimal degrees
+        let dd = degrees + (minutes / 60) + (seconds / 3600);
+        console.log('Decimal degrees before direction:', dd);
+
+        // Handle direction reference - Android sometimes has empty arrays
+        let direction = null;
+        if (Array.isArray(ref)) {
+            if (ref.length > 0) {
+                direction = ref[0];
+            } else {
+                console.log('Empty reference array - assuming positive coordinate');
+                return dd; // Return as-is, assuming positive
+            }
+        } else if (typeof ref === 'string') {
+            direction = ref;
+        } else if (ref && ref.value) {
+            direction = ref.value;
+        }
+
+        console.log('Reference direction after extraction:', direction);
+
+        // Apply direction if we have it
+        if (direction && ['S', 'W'].includes(direction)) {
+            dd = dd * -1;
+            console.log('Applied negative for', direction, 'result:', dd);
+        } else {
+            console.log('No negative applied, result:', dd);
+        }
+
+        console.log('Final decimal degrees:', dd);
+        return dd;
+    }
+
+    const isValidGPSCoordinates = (gpsData) => {
+        if (!gpsData ||
+            gpsData.latitude === undefined ||
+            gpsData.longitude === undefined ||
+            isNaN(gpsData.latitude) ||
+            isNaN(gpsData.longitude)) {
+            return false;
+        }
+
+        // Check valid coordinate ranges
+        if (gpsData.latitude < -90 || gpsData.latitude > 90 ||
+            gpsData.longitude < -180 || gpsData.longitude > 180) {
+            return false;
+        }
+
+        // Reject coordinates that are exactly (0,0) or very close to it
+        // This catches many cases of invalid/missing GPS data
+        if (Math.abs(gpsData.latitude) < 0.001 && Math.abs(gpsData.longitude) < 0.001) {
+            console.warn('GPS coordinates too close to (0,0), likely invalid');
+            return false;
+        }
+
+        return true;
     };
 
     const validatePhotos = async (files) => {
@@ -261,10 +494,15 @@ function SkateparkInputForm(props){
                 body: uploadData
             });
 
-            if (response.ok) {
-                console.log("Submission successful!");
-                setSubmissionStatus(`Successfully uploaded ${validatedPhotos.length} photo(s)! Thank you for your submission.`);
+            // Parse the response
+            const responseData = await response.json();
 
+            if (response.ok && responseData.success) {
+                // Success case
+                console.log("Submission successful!");
+                setSubmissionStatus(`Successfully uploaded ${responseData.processed} photo(s)! Thank you for your submission.`);
+
+                // Reset form
                 setFormData({
                     name: '',
                     address: '',
@@ -284,13 +522,30 @@ function SkateparkInputForm(props){
                 if (fileInput) fileInput.value = '';
 
             } else {
-                console.error("Submission failed.");
-                setSubmissionStatus("Submission failed, please try again");
+                // Server returned an error response
+                console.error("Submission failed with server error:", responseData);
+
+                let errorMessage = "Submission failed";
+
+                if (responseData.error) {
+                    errorMessage = responseData.error;
+                } else if (responseData.message) {
+                    errorMessage = responseData.message;
+                } else if (responseData.errors && responseData.errors.length > 0) {
+                    errorMessage = `Upload failed: ${responseData.errors.join(', ')}`;
+                }
+
+                // Show specific error about GPS data if no photos were processed
+                if (responseData.processed === 0 && responseData.total > 0) {
+                    errorMessage = `No photos could be uploaded. All ${responseData.total} photo(s) are missing GPS coordinates. Please ensure location services are enabled in your camera app and take photos outdoors with clear GPS signal.`;
+                }
+
+                setSubmissionStatus(errorMessage);
             }
 
         } catch (error) {
-            console.error("An error occurred:", error);
-            setSubmissionStatus("An error occurred during submission");
+            console.error("Network or parsing error:", error);
+            setSubmissionStatus("Network error occurred during submission. Please check your connection and try again.");
         }
     };
 
