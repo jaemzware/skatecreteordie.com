@@ -5,11 +5,11 @@ function Welcome(props) {
     return (
         <div className="welcome-container">
             <a href="#" onClick={() => props.setShowPage("MAP")}>
-            <img
-                className="welcome-logo"
-                src={`${process.env.REACT_APP_IMAGE_SERVER_URL}skatecreteordiedeck.png`}
-                alt="skatecreteordie deck logo"
-            />
+                <img
+                    className="welcome-logo"
+                    src={`${process.env.REACT_APP_IMAGE_SERVER_URL}skatecreteordiedeck.png`}
+                    alt="skatecreteordie deck logo"
+                />
             </a>
             <h1>Skatepark Map</h1>
             <h1>(tap truck)</h1>
@@ -32,6 +32,17 @@ function Welcome(props) {
                 <p>
                     <a href={process.env.REACT_APP_GITHUB_URL} target="_blank"><b>open source - readme/quick start</b></a>
                 </p>
+                <div className="welcome-video-container">
+                    <video
+                        className="welcome-video"
+                        controls
+                        preload="metadata"
+                        poster={`${process.env.REACT_APP_IMAGE_SERVER_URL}video-poster.jpg`}
+                    >
+                        <source src="https://skatecreteordie.s3.us-east-005.backblazeb2.com/content/del.mp4" type="video/mp4" />
+                        Your browser does not support the video tag.
+                    </video>
+                </div>
                 <p className="invisible-text">
                     {props.pageCount}
                 </p>
