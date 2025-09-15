@@ -648,3 +648,40 @@ input[type="text"] {
   border-radius: 4px;
   margin-top: 16px;
 }
+
+.welcome-video-container {
+  width: 100%;
+  max-width: 800px;
+  margin: 30px auto;
+  padding: 0 20px;
+  box-sizing: border-box;
+}
+
+.welcome-video {
+  width: 100%;
+  height: auto;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  background-color: #000;
+}
+
+/* Mobile styles for the video */
+@media (max-width: 768px) {
+  .welcome-video-container {
+    margin: 20px auto;
+    padding: 0 10px;
+  }
+
+  .welcome-video {
+    border-radius: 4px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  }
+}
+
+/* For very small screens */
+@media (max-width: 480px) {
+  .welcome-video-container {
+    padding: 0 5px;
+    margin: 15px auto;
+  }
+}

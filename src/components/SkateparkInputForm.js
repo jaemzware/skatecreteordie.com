@@ -556,18 +556,31 @@ function SkateparkInputForm(props){
                     {/* Main Section - Prominent */}
                     <div style={{marginBottom: '20px', padding: '20px', border: '2px solid #007cba', borderRadius: '8px', backgroundColor: '#f8f9fa'}}>
                         <h3 style={{margin: '0 0 15px 0', color: '#007cba'}}>Upload Skate Spot Photos</h3>
-                        <p style={{margin: '0 0 15px 0', fontSize: '16px'}}><strong>Required:</strong> Photos with GPS coordinates (geocoordinates)</p>
+                        <div style={{marginBottom: '15px', padding: '12px', backgroundColor: '#fff3cd', border: '1px solid #ffeaa7', borderRadius: '4px'}}>
+                            <p style={{margin: '0 0 8px 0', fontSize: '14px', fontWeight: 'bold', color: '#856404'}}>📍 GPS Coordinates Required</p>
+                            <p style={{margin: '0 0 8px 0', fontSize: '13px', color: '#856404'}}>
+                                <strong>Important:</strong> Photos must be taken with a camera app that saves GPS location data.
+                            </p>
+                            <p style={{margin: '0 0 8px 0', fontSize: '12px', color: '#856404'}}>
+                                • Enable location services in your camera app<br/>
+                                • Take photos outdoors for best GPS signal<br/>
+                                • <strong>Select photos from your gallery/camera roll</strong>
+                            </p>
+                            <p style={{margin: '0', fontSize: '12px', color: '#d63384', fontWeight: 'bold'}}>
+                                ⚠️ DO NOT use "Take Photo" option - web photos lack GPS data
+                            </p>
+                        </div>
 
                         <div style={{marginBottom: '15px'}}>
                             <label htmlFor="photos" style={{display: 'block', marginBottom: '5px', fontWeight: 'bold', fontSize: '16px'}}>
-                                Select Photos*:
+                                Select Photos from Gallery*:
                             </label>
                             <input
                                 onChange={handlePhotoUpload}
                                 type="file"
                                 id="photos"
                                 name="photos"
-                                accept="image/*"
+                                accept="image/jpeg,image/jpg,image/png,image/heic,image/heif"
                                 multiple
                                 required
                                 style={{padding: '8px', fontSize: '14px', width: '100%', maxWidth: '400px'}}

@@ -11,7 +11,6 @@ import Welcome from "./Welcome";
 import Donate from "./Donate";
 import { APIProvider } from '@vis.gl/react-google-maps';
 
-
 function HomePage(props){
     const [showPage, setShowPage] = useState("WELCOME");
     const [fileListingArray, setFileListingArray] = useState([]);
@@ -19,14 +18,35 @@ function HomePage(props){
 
     const urlParams = new URLSearchParams(window.location.search);
     const parkId = urlParams.get('parkId');
+    const pageParam = urlParams.get('page'); // Get the page parameter
 
     const handlePageChange = (page) => {
         setShowPage(page);
 
-        // Clear the parkId parameter when navigating to other pages
-        if (page !== "MAP") {
-            window.history.replaceState(null, '', window.location.pathname);
+        // Update URL with the page parameter
+        const url = new URL(window.location);
+
+        if (page === "WELCOME") {
+            // Remove page parameter for welcome page (default)
+            url.searchParams.delete('page');
+            url.searchParams.delete('parkId'); // Also clear parkId
+        } else if (page === "MAP") {
+            url.searchParams.set('page', 'map');
+            // Keep parkId if it exists for MAP page
+        } else {
+            // Set the page parameter for other pages
+            const pageMapping = {
+                "LIST": "list",
+                "IOS": "ios",
+                "ANDROID": "android",
+                "SUBMISSION": "submission",
+                "DONATE": "donate"
+            };
+            url.searchParams.set('page', pageMapping[page]);
+            url.searchParams.delete('parkId'); // Clear parkId for non-map pages
         }
+
+        window.history.replaceState(null, '', url.toString());
     };
 
     useEffect(() => {
@@ -65,10 +85,24 @@ function HomePage(props){
                 console.error('Error incrementing counter:', error);
             });
 
+        // Set page based on URL parameters
         if (parkId) {
             setShowPage("MAP");
+        } else if (pageParam) {
+            const pageMapping = {
+                "list": "LIST",
+                "ios": "IOS",
+                "android": "ANDROID",
+                "submission": "SUBMISSION",
+                "donate": "DONATE",
+                "map": "MAP"
+            };
+            const mappedPage = pageMapping[pageParam.toLowerCase()];
+            if (mappedPage) {
+                setShowPage(mappedPage);
+            }
         }
-    }, [parkId]);
+    }, [parkId, pageParam]);
 
     if (showPage === "LIST"){
         return(
@@ -119,7 +153,7 @@ function HomePage(props){
         return(
             <>
                 <APIProvider apiKey={process.env.REACT_APP_GOOGLE_MAPS_API_KEY}>
-                <AdvancedMapComponent fileListingArray={fileListingArray}  selectedParkId={parkId}/>
+                    <AdvancedMapComponent fileListingArray={fileListingArray}  selectedParkId={parkId}/>
                 </APIProvider>
                 <Footer setShowPage={handlePageChange} />
             </>
