@@ -31,17 +31,42 @@ function SkateparkInputForm(props){
     const [showSubmissions, setShowSubmissions] = useState(false);
 
     useEffect(() => {
-        const uniqueInitialPins = [...new Set(props.fileListingArray.map(item => item.pinimage))];
-        uniqueInitialPins.sort();
-        setUniquePin(uniqueInitialPins);
+        // Function to populate dropdowns
+        const populateDropdowns = () => {
+            if (props.fileListingArray && props.fileListingArray.length > 0) {
+                const uniqueInitialPins = [...new Set(props.fileListingArray.map(item => item.pinimage))].filter(Boolean);
+                uniqueInitialPins.sort();
+                setUniquePin(uniqueInitialPins);
 
-        const uniqueLocationGroups = [...new Set(props.fileListingArray.map(item => item.group))];
-        uniqueLocationGroups.sort();
-        setLocationGroup(uniqueLocationGroups);
+                const uniqueLocationGroups = [...new Set(props.fileListingArray.map(item => item.group))].filter(Boolean);
+                uniqueLocationGroups.sort();
+                setLocationGroup(uniqueLocationGroups);
+            }
+        };
 
-        // Fetch submissions on component mount
+        // Try immediately
+        populateDropdowns();
+
+        // Also try after a short delay in case data loads later
+        const timer = setTimeout(populateDropdowns, 1000);
+
         fetchSubmissions();
+
+        return () => clearTimeout(timer);
     }, []);
+
+// Also watch for changes to props.fileListingArray
+    useEffect(() => {
+        if (props.fileListingArray && props.fileListingArray.length > 0) {
+            const uniqueInitialPins = [...new Set(props.fileListingArray.map(item => item.pinimage))].filter(Boolean);
+            uniqueInitialPins.sort();
+            setUniquePin(uniqueInitialPins);
+
+            const uniqueLocationGroups = [...new Set(props.fileListingArray.map(item => item.group))].filter(Boolean);
+            uniqueLocationGroups.sort();
+            setLocationGroup(uniqueLocationGroups);
+        }
+    }, [props.fileListingArray]);
 
     // Function to fetch submissions from your server
     const fetchSubmissions = async () => {
