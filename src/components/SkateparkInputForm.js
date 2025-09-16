@@ -890,7 +890,7 @@ function SkateparkInputForm(props){
                                         borderRadius: '4px',
                                         color: '#666'
                                     }}>
-                                        No submissions found in the Backblaze submissions folder.
+                                        No submissions found.
                                     </div>
                                 ) : (
                                     <div style={{ overflowX: 'auto' }}>
