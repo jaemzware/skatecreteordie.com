@@ -685,3 +685,13 @@ input[type="text"] {
     margin: 15px auto;
   }
 }
+
+@media (max-width: 768px) {
+  .desktop-table {
+    display: none !important;
+  }
+
+  .mobile-cards {
+    display: block !important;
+  }
+}

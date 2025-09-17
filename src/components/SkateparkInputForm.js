@@ -893,87 +893,137 @@ function SkateparkInputForm(props){
                                         No submissions found.
                                     </div>
                                 ) : (
-                                    <div style={{ overflowX: 'auto' }}>
-                                        <table style={{
-                                            width: '100%',
-                                            borderCollapse: 'collapse',
-                                            fontSize: '11px',
-                                            backgroundColor: 'white',
-                                            border: '1px solid #dee2e6'
-                                        }}>
-                                            <thead>
-                                            <tr style={{ backgroundColor: '#f8f9fa' }}>
-                                                <th style={{ border: '1px solid #dee2e6', padding: '6px', textAlign: 'left', fontWeight: 'bold' }}>Name</th>
-                                                <th style={{ border: '1px solid #dee2e6', padding: '6px', textAlign: 'left', fontWeight: 'bold' }}>Address</th>
-                                                <th style={{ border: '1px solid #dee2e6', padding: '6px', textAlign: 'left', fontWeight: 'bold' }}>ID</th>
-                                                <th style={{ border: '1px solid #dee2e6', padding: '6px', textAlign: 'left', fontWeight: 'bold' }}>Builder</th>
-                                                <th style={{ border: '1px solid #dee2e6', padding: '6px', textAlign: 'left', fontWeight: 'bold' }}>SqFt</th>
-                                                <th style={{ border: '1px solid #dee2e6', padding: '6px', textAlign: 'left', fontWeight: 'bold' }}>Lights</th>
-                                                <th style={{ border: '1px solid #dee2e6', padding: '6px', textAlign: 'left', fontWeight: 'bold' }}>Covered</th>
-                                                <th style={{ border: '1px solid #dee2e6', padding: '6px', textAlign: 'left', fontWeight: 'bold' }}>URL</th>
-                                                <th style={{ border: '1px solid #dee2e6', padding: '6px', textAlign: 'left', fontWeight: 'bold' }}>Elements</th>
-                                                <th style={{ border: '1px solid #dee2e6', padding: '6px', textAlign: 'left', fontWeight: 'bold' }}>Pin Image</th>
-                                                <th style={{ border: '1px solid #dee2e6', padding: '6px', textAlign: 'left', fontWeight: 'bold' }}>Photos</th>
-                                                <th style={{ border: '1px solid #dee2e6', padding: '6px', textAlign: 'left', fontWeight: 'bold' }}>Latitude</th>
-                                                <th style={{ border: '1px solid #dee2e6', padding: '6px', textAlign: 'left', fontWeight: 'bold' }}>Longitude</th>
-                                                <th style={{ border: '1px solid #dee2e6', padding: '6px', textAlign: 'left', fontWeight: 'bold' }}>Group</th>
-                                                <th style={{ border: '1px solid #dee2e6', padding: '6px', textAlign: 'left', fontWeight: 'bold' }}>Image Link</th>
-                                                <th style={{ border: '1px solid #dee2e6', padding: '6px', textAlign: 'left', fontWeight: 'bold' }}>Google Maps</th>
-                                            </tr>
-                                            </thead>
-                                            <tbody>
+                                    <div>
+                                        {/* Desktop Table */}
+                                        <div className="desktop-table">
+                                            <div style={{ overflowX: 'auto' }}>
+                                                <table style={{
+                                                    width: '100%',
+                                                    borderCollapse: 'collapse',
+                                                    fontSize: '11px',
+                                                    backgroundColor: 'white',
+                                                    border: '1px solid #dee2e6'
+                                                }}>
+                                                    <thead>
+                                                    <tr style={{ backgroundColor: '#f8f9fa' }}>
+                                                        <th style={{ border: '1px solid #dee2e6', padding: '6px', textAlign: 'left', fontWeight: 'bold' }}>Name</th>
+                                                        <th style={{ border: '1px solid #dee2e6', padding: '6px', textAlign: 'left', fontWeight: 'bold' }}>Address</th>
+                                                        <th style={{ border: '1px solid #dee2e6', padding: '6px', textAlign: 'left', fontWeight: 'bold' }}>ID</th>
+                                                        <th style={{ border: '1px solid #dee2e6', padding: '6px', textAlign: 'left', fontWeight: 'bold' }}>Builder</th>
+                                                        <th style={{ border: '1px solid #dee2e6', padding: '6px', textAlign: 'left', fontWeight: 'bold' }}>SqFt</th>
+                                                        <th style={{ border: '1px solid #dee2e6', padding: '6px', textAlign: 'left', fontWeight: 'bold' }}>Lights</th>
+                                                        <th style={{ border: '1px solid #dee2e6', padding: '6px', textAlign: 'left', fontWeight: 'bold' }}>Covered</th>
+                                                        <th style={{ border: '1px solid #dee2e6', padding: '6px', textAlign: 'left', fontWeight: 'bold' }}>URL</th>
+                                                        <th style={{ border: '1px solid #dee2e6', padding: '6px', textAlign: 'left', fontWeight: 'bold' }}>Elements</th>
+                                                        <th style={{ border: '1px solid #dee2e6', padding: '6px', textAlign: 'left', fontWeight: 'bold' }}>Pin Image</th>
+                                                        <th style={{ border: '1px solid #dee2e6', padding: '6px', textAlign: 'left', fontWeight: 'bold' }}>Photos</th>
+                                                        <th style={{ border: '1px solid #dee2e6', padding: '6px', textAlign: 'left', fontWeight: 'bold' }}>Latitude</th>
+                                                        <th style={{ border: '1px solid #dee2e6', padding: '6px', textAlign: 'left', fontWeight: 'bold' }}>Longitude</th>
+                                                        <th style={{ border: '1px solid #dee2e6', padding: '6px', textAlign: 'left', fontWeight: 'bold' }}>Group</th>
+                                                        <th style={{ border: '1px solid #dee2e6', padding: '6px', textAlign: 'left', fontWeight: 'bold' }}>Image Link</th>
+                                                        <th style={{ border: '1px solid #dee2e6', padding: '6px', textAlign: 'left', fontWeight: 'bold' }}>Google Maps</th>
+                                                    </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                    {submissions.map((submission, index) => (
+                                                        <tr key={index} style={{ backgroundColor: index % 2 === 0 ? 'white' : '#f8f9fa' }}>
+                                                            <td style={{ border: '1px solid #dee2e6', padding: '4px' }}>{submission.spotData?.name || ''}</td>
+                                                            <td style={{ border: '1px solid #dee2e6', padding: '4px' }}>{submission.spotData?.address || ''}</td>
+                                                            <td style={{ border: '1px solid #dee2e6', padding: '4px' }}>{submission.spotData?.id || ''}</td>
+                                                            <td style={{ border: '1px solid #dee2e6', padding: '4px' }}>{submission.spotData?.builder || ''}</td>
+                                                            <td style={{ border: '1px solid #dee2e6', padding: '4px' }}>{submission.spotData?.sqft || ''}</td>
+                                                            <td style={{ border: '1px solid #dee2e6', padding: '4px' }}>{submission.spotData?.lights || ''}</td>
+                                                            <td style={{ border: '1px solid #dee2e6', padding: '4px' }}>{submission.spotData?.covered || ''}</td>
+                                                            <td style={{ border: '1px solid #dee2e6', padding: '4px' }}>
+                                                                {submission.spotData?.url ? (
+                                                                    <a href={submission.spotData.url} target="_blank" rel="noopener noreferrer" style={{ color: '#007cba' }}>
+                                                                        {submission.spotData.url.length > 20 ? submission.spotData.url.substring(0, 20) + '...' : submission.spotData.url}
+                                                                    </a>
+                                                                ) : ''}
+                                                            </td>
+                                                            <td style={{ border: '1px solid #dee2e6', padding: '4px' }}>{submission.spotData?.elements || ''}</td>
+                                                            <td style={{ border: '1px solid #dee2e6', padding: '4px' }}>{submission.spotData?.pinimage || ''}</td>
+                                                            <td style={{ border: '1px solid #dee2e6', padding: '4px' }}>{submission.originalFileName || ''}</td>
+                                                            <td style={{ border: '1px solid #dee2e6', padding: '4px' }}>
+                                                                {submission.coordinates?.latitude || submission.spotData?.latitude || ''}
+                                                            </td>
+                                                            <td style={{ border: '1px solid #dee2e6', padding: '4px' }}>
+                                                                {submission.coordinates?.longitude || submission.spotData?.longitude || ''}
+                                                            </td>
+                                                            <td style={{ border: '1px solid #dee2e6', padding: '4px' }}>{submission.spotData?.group || ''}</td>
+                                                            <td style={{ border: '1px solid #dee2e6', padding: '4px' }}>
+                                                                {submission.imageUrl ? (
+                                                                    <a href={submission.imageUrl} target="_blank" rel="noopener noreferrer" style={{ color: '#007cba' }}>
+                                                                        View
+                                                                    </a>
+                                                                ) : ''}
+                                                            </td>
+                                                            <td style={{ border: '1px solid #dee2e6', padding: '4px' }}>
+                                                                {(submission.coordinates?.googleMapsUrl ||
+                                                                    (submission.coordinates?.latitude && submission.coordinates?.longitude &&
+                                                                        `https://www.google.com/maps?q=${submission.coordinates.latitude},${submission.coordinates.longitude}`)) ? (
+                                                                    <a
+                                                                        href={submission.coordinates?.googleMapsUrl ||
+                                                                        `https://www.google.com/maps?q=${submission.coordinates.latitude},${submission.coordinates.longitude}`}
+                                                                        target="_blank"
+                                                                        rel="noopener noreferrer"
+                                                                        style={{ color: '#007cba' }}
+                                                                    >
+                                                                        Map
+                                                                    </a>
+                                                                ) : ''}
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+
+                                        {/* Mobile Cards */}
+                                        <div className="mobile-cards" style={{ display: 'none' }}>
                                             {submissions.map((submission, index) => (
-                                                <tr key={index} style={{ backgroundColor: index % 2 === 0 ? 'white' : '#f8f9fa' }}>
-                                                    <td style={{ border: '1px solid #dee2e6', padding: '4px' }}>{submission.spotData?.name || ''}</td>
-                                                    <td style={{ border: '1px solid #dee2e6', padding: '4px' }}>{submission.spotData?.address || ''}</td>
-                                                    <td style={{ border: '1px solid #dee2e6', padding: '4px' }}>{submission.spotData?.id || ''}</td>
-                                                    <td style={{ border: '1px solid #dee2e6', padding: '4px' }}>{submission.spotData?.builder || ''}</td>
-                                                    <td style={{ border: '1px solid #dee2e6', padding: '4px' }}>{submission.spotData?.sqft || ''}</td>
-                                                    <td style={{ border: '1px solid #dee2e6', padding: '4px' }}>{submission.spotData?.lights || ''}</td>
-                                                    <td style={{ border: '1px solid #dee2e6', padding: '4px' }}>{submission.spotData?.covered || ''}</td>
-                                                    <td style={{ border: '1px solid #dee2e6', padding: '4px' }}>
-                                                        {submission.spotData?.url ? (
-                                                            <a href={submission.spotData.url} target="_blank" rel="noopener noreferrer" style={{ color: '#007cba' }}>
-                                                                {submission.spotData.url.length > 20 ? submission.spotData.url.substring(0, 20) + '...' : submission.spotData.url}
-                                                            </a>
-                                                        ) : ''}
-                                                    </td>
-                                                    <td style={{ border: '1px solid #dee2e6', padding: '4px' }}>{submission.spotData?.elements || ''}</td>
-                                                    <td style={{ border: '1px solid #dee2e6', padding: '4px' }}>{submission.spotData?.pinimage || ''}</td>
-                                                    <td style={{ border: '1px solid #dee2e6', padding: '4px' }}>{submission.originalFileName || ''}</td>
-                                                    <td style={{ border: '1px solid #dee2e6', padding: '4px' }}>
-                                                        {submission.coordinates?.latitude || submission.spotData?.latitude || ''}
-                                                    </td>
-                                                    <td style={{ border: '1px solid #dee2e6', padding: '4px' }}>
-                                                        {submission.coordinates?.longitude || submission.spotData?.longitude || ''}
-                                                    </td>
-                                                    <td style={{ border: '1px solid #dee2e6', padding: '4px' }}>{submission.spotData?.group || ''}</td>
-                                                    <td style={{ border: '1px solid #dee2e6', padding: '4px' }}>
-                                                        {submission.imageUrl ? (
-                                                            <a href={submission.imageUrl} target="_blank" rel="noopener noreferrer" style={{ color: '#007cba' }}>
-                                                                View
-                                                            </a>
-                                                        ) : ''}
-                                                    </td>
-                                                    <td style={{ border: '1px solid #dee2e6', padding: '4px' }}>
-                                                        {(submission.coordinates?.googleMapsUrl ||
-                                                            (submission.coordinates?.latitude && submission.coordinates?.longitude &&
-                                                                `https://www.google.com/maps?q=${submission.coordinates.latitude},${submission.coordinates.longitude}`)) ? (
-                                                            <a
-                                                                href={submission.coordinates?.googleMapsUrl ||
-                                                                `https://www.google.com/maps?q=${submission.coordinates.latitude},${submission.coordinates.longitude}`}
-                                                                target="_blank"
-                                                                rel="noopener noreferrer"
-                                                                style={{ color: '#007cba' }}
-                                                            >
-                                                                Map
-                                                            </a>
-                                                        ) : ''}
-                                                    </td>
-                                                </tr>
+                                                <div key={index} style={{
+                                                    backgroundColor: 'white',
+                                                    border: '1px solid #dee2e6',
+                                                    borderRadius: '4px',
+                                                    padding: '12px',
+                                                    marginBottom: '10px',
+                                                    fontSize: '12px'
+                                                }}>
+                                                    <div style={{ fontWeight: 'bold', marginBottom: '8px', color: '#007cba' }}>
+                                                        {submission.spotData?.name || 'Unnamed Spot'}
+                                                    </div>
+                                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                                                        <div><strong>Address:</strong> {submission.spotData?.address || 'N/A'}</div>
+                                                        <div><strong>ID:</strong> {submission.spotData?.id || 'N/A'}</div>
+                                                        <div><strong>Builder:</strong> {submission.spotData?.builder || 'N/A'}</div>
+                                                        <div><strong>Elements:</strong> {submission.spotData?.elements || 'N/A'}</div>
+                                                        <div><strong>Lights:</strong> {submission.spotData?.lights || 'N/A'}</div>
+                                                        <div><strong>Covered:</strong> {submission.spotData?.covered || 'N/A'}</div>
+                                                        <div style={{ gridColumn: '1 / -1' }}><strong>Photo:</strong> {submission.originalFileName || 'N/A'}</div>
+                                                        <div style={{ gridColumn: '1 / -1' }}>
+                                                            <strong>Links:</strong>
+                                                            {submission.imageUrl && (
+                                                                <a href={submission.imageUrl} target="_blank" rel="noopener noreferrer" style={{ color: '#007cba', marginLeft: '8px' }}>
+                                                                    View Image
+                                                                </a>
+                                                            )}
+                                                            {(submission.coordinates?.latitude && submission.coordinates?.longitude) && (
+                                                                <a
+                                                                    href={`https://www.google.com/maps?q=${submission.coordinates.latitude},${submission.coordinates.longitude}`}
+                                                                    target="_blank"
+                                                                    rel="noopener noreferrer"
+                                                                    style={{ color: '#007cba', marginLeft: '8px' }}
+                                                                >
+                                                                    Maps
+                                                                </a>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                </div>
                                             ))}
-                                            </tbody>
-                                        </table>
+                                        </div>
                                     </div>
                                 )}
 
