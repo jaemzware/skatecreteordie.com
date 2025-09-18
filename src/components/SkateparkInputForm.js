@@ -24,16 +24,118 @@ function SkateparkInputForm(props){
     const [uniqueLocationGroup, setLocationGroup] = useState([]);
     const [showOptionalFields, setShowOptionalFields] = useState(false);
 
+    // New state for submissions table
+    const [submissions, setSubmissions] = useState([]);
+    const [submissionsLoading, setSubmissionsLoading] = useState(false);
+    const [submissionsError, setSubmissionsError] = useState(null);
+    const [showSubmissions, setShowSubmissions] = useState(false);
+
     useEffect(() => {
-        const uniqueInitialPins = [...new Set(props.fileListingArray.map(item => item.pinimage))];
-        uniqueInitialPins.sort();
-        setUniquePin(uniqueInitialPins);
+        // Function to populate dropdowns
+        const populateDropdowns = () => {
+            if (props.fileListingArray && props.fileListingArray.length > 0) {
+                const uniqueInitialPins = [...new Set(props.fileListingArray.map(item => item.pinimage))].filter(Boolean);
+                uniqueInitialPins.sort();
+                setUniquePin(uniqueInitialPins);
 
-        const uniqueLocationGroups = [...new Set(props.fileListingArray.map(item => item.group))];
-        uniqueLocationGroups.sort();
-        setLocationGroup(uniqueLocationGroups);
+                const uniqueLocationGroups = [...new Set(props.fileListingArray.map(item => item.group))].filter(Boolean);
+                uniqueLocationGroups.sort();
+                setLocationGroup(uniqueLocationGroups);
+            }
+        };
 
+        // Try immediately
+        populateDropdowns();
+
+        // Also try after a short delay in case data loads later
+        const timer = setTimeout(populateDropdowns, 1000);
+
+        fetchSubmissions();
+
+        return () => clearTimeout(timer);
     }, []);
+
+// Also watch for changes to props.fileListingArray
+    useEffect(() => {
+        if (props.fileListingArray && props.fileListingArray.length > 0) {
+            const uniqueInitialPins = [...new Set(props.fileListingArray.map(item => item.pinimage))].filter(Boolean);
+            uniqueInitialPins.sort();
+            setUniquePin(uniqueInitialPins);
+
+            const uniqueLocationGroups = [...new Set(props.fileListingArray.map(item => item.group))].filter(Boolean);
+            uniqueLocationGroups.sort();
+            setLocationGroup(uniqueLocationGroups);
+        }
+    }, [props.fileListingArray]);
+
+    // Function to fetch submissions from your server
+    const fetchSubmissions = async () => {
+        setSubmissionsLoading(true);
+        setSubmissionsError(null);
+
+        try {
+            const response = await fetch(process.env.REACT_APP_LIST_SUBMISSIONS_API_URL, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const data = await response.json();
+            setSubmissions(data.submissions || []);
+        } catch (err) {
+            setSubmissionsError(`Failed to fetch submissions: ${err.message}`);
+            console.error('Error fetching submissions:', err);
+        } finally {
+            setSubmissionsLoading(false);
+        }
+    };
+
+    // Function to copy table data to clipboard for spreadsheet
+    const copyToClipboard = () => {
+        const headers = [
+            'Name', 'Address', 'ID', 'Builder', 'SqFt', 'Lights', 'Covered',
+            'URL', 'Elements', 'Pin Image', 'Photos', 'Latitude', 'Longitude',
+            'Group', 'Image Link', 'Google Maps Link'
+        ];
+
+        const rows = submissions.map(submission => [
+            submission.spotData?.name || '',
+            submission.spotData?.address || '',
+            submission.spotData?.id || '',
+            submission.spotData?.builder || '',
+            submission.spotData?.sqft || '',
+            submission.spotData?.lights || '',
+            submission.spotData?.covered || '',
+            submission.spotData?.url || '',
+            submission.spotData?.elements || '',
+            submission.spotData?.pinimage || '',
+            submission.originalFileName || '',
+            submission.coordinates?.latitude || submission.spotData?.latitude || '',
+            submission.coordinates?.longitude || submission.spotData?.longitude || '',
+            submission.spotData?.group || '',
+            submission.imageUrl || '',
+            submission.coordinates?.googleMapsUrl ||
+            (submission.coordinates?.latitude && submission.coordinates?.longitude
+                ? `https://www.google.com/maps?q=${submission.coordinates.latitude},${submission.coordinates.longitude}`
+                : '')
+        ]);
+
+        const csvContent = [headers, ...rows]
+            .map(row => row.map(cell => `"${cell}"`).join('\t'))
+            .join('\n');
+
+        navigator.clipboard.writeText(csvContent).then(() => {
+            alert('Table data copied to clipboard! You can now paste it into a spreadsheet.');
+        }).catch(err => {
+            console.error('Failed to copy to clipboard:', err);
+            alert('Failed to copy to clipboard. Please try selecting and copying manually.');
+        });
+    };
 
     const handleInputChange = (event) => {
         const { name, value } = event.target;
@@ -521,6 +623,9 @@ function SkateparkInputForm(props){
                 const fileInput = document.getElementById('photos');
                 if (fileInput) fileInput.value = '';
 
+                // Refresh submissions list after successful upload
+                fetchSubmissions();
+
             } else {
                 // Server returned an error response
                 console.error("Submission failed with server error:", responseData);
@@ -624,7 +729,7 @@ function SkateparkInputForm(props){
                                 color: '#666'
                             }}
                         >
-                            {showOptionalFields ? '− Hide' : '+ Show'} Optional Details
+                            {showOptionalFields ? '∧ Hide' : '+ Show'} Optional Details
                         </button>
                         <span style={{marginLeft: '10px', fontSize: '13px', color: '#888'}}>
                             (spot name, address, features, etc.)
@@ -703,6 +808,239 @@ function SkateparkInputForm(props){
                             </div>
                         </div>
                     )}
+
+                    {/* Submissions History Section */}
+                    <div style={{marginBottom: '20px'}}>
+                        <button
+                            type="button"
+                            onClick={() => setShowSubmissions(!showSubmissions)}
+                            style={{
+                                background: '#28a745',
+                                border: 'none',
+                                padding: '10px 16px',
+                                borderRadius: '4px',
+                                cursor: 'pointer',
+                                fontSize: '14px',
+                                color: 'white',
+                                fontWeight: 'bold'
+                            }}
+                        >
+                            {showSubmissions ? '- Hide' : '+ Show'} Submission History ({submissions.length})
+                        </button>
+                        {showSubmissions && (
+                            <div style={{marginTop: '15px', padding: '20px', backgroundColor: '#f8f9fa', border: '1px solid #e9ecef', borderRadius: '4px'}}>
+                                <div style={{ marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <h3 style={{ margin: 0, color: '#007cba' }}>
+                                        Submission History ({submissions.length} submissions)
+                                    </h3>
+                                    <div>
+                                        <button
+                                            onClick={fetchSubmissions}
+                                            style={{
+                                                padding: '8px 16px',
+                                                backgroundColor: '#28a745',
+                                                color: 'white',
+                                                border: 'none',
+                                                borderRadius: '4px',
+                                                cursor: 'pointer',
+                                                marginRight: '10px',
+                                                fontSize: '12px'
+                                            }}
+                                            disabled={submissionsLoading}
+                                        >
+                                            {submissionsLoading ? 'Loading...' : 'Refresh'}
+                                        </button>
+                                        <button
+                                            onClick={copyToClipboard}
+                                            disabled={submissions.length === 0}
+                                            style={{
+                                                padding: '8px 16px',
+                                                backgroundColor: submissions.length > 0 ? '#17a2b8' : '#6c757d',
+                                                color: 'white',
+                                                border: 'none',
+                                                borderRadius: '4px',
+                                                cursor: submissions.length > 0 ? 'pointer' : 'not-allowed',
+                                                fontSize: '12px'
+                                            }}
+                                        >
+                                            Copy to Clipboard
+                                        </button>
+                                    </div>
+                                </div>
+
+                                {submissionsLoading ? (
+                                    <div style={{ padding: '20px', textAlign: 'center' }}>
+                                        <div style={{ fontSize: '16px', color: '#666' }}>Loading submissions...</div>
+                                    </div>
+                                ) : submissionsError ? (
+                                    <div style={{
+                                        backgroundColor: '#f8d7da',
+                                        color: '#721c24',
+                                        padding: '12px',
+                                        borderRadius: '4px',
+                                        marginBottom: '10px'
+                                    }}>
+                                        {submissionsError}
+                                    </div>
+                                ) : submissions.length === 0 ? (
+                                    <div style={{
+                                        textAlign: 'center',
+                                        padding: '40px',
+                                        backgroundColor: 'white',
+                                        borderRadius: '4px',
+                                        color: '#666'
+                                    }}>
+                                        No submissions found.
+                                    </div>
+                                ) : (
+                                    <div>
+                                        {/* Desktop Table */}
+                                        <div className="desktop-table">
+                                            <div style={{ overflowX: 'auto' }}>
+                                                <table style={{
+                                                    width: '100%',
+                                                    borderCollapse: 'collapse',
+                                                    fontSize: '11px',
+                                                    backgroundColor: 'white',
+                                                    border: '1px solid #dee2e6'
+                                                }}>
+                                                    <thead>
+                                                    <tr style={{ backgroundColor: '#f8f9fa' }}>
+                                                        <th style={{ border: '1px solid #dee2e6', padding: '6px', textAlign: 'left', fontWeight: 'bold' }}>Name</th>
+                                                        <th style={{ border: '1px solid #dee2e6', padding: '6px', textAlign: 'left', fontWeight: 'bold' }}>Address</th>
+                                                        <th style={{ border: '1px solid #dee2e6', padding: '6px', textAlign: 'left', fontWeight: 'bold' }}>ID</th>
+                                                        <th style={{ border: '1px solid #dee2e6', padding: '6px', textAlign: 'left', fontWeight: 'bold' }}>Builder</th>
+                                                        <th style={{ border: '1px solid #dee2e6', padding: '6px', textAlign: 'left', fontWeight: 'bold' }}>SqFt</th>
+                                                        <th style={{ border: '1px solid #dee2e6', padding: '6px', textAlign: 'left', fontWeight: 'bold' }}>Lights</th>
+                                                        <th style={{ border: '1px solid #dee2e6', padding: '6px', textAlign: 'left', fontWeight: 'bold' }}>Covered</th>
+                                                        <th style={{ border: '1px solid #dee2e6', padding: '6px', textAlign: 'left', fontWeight: 'bold' }}>URL</th>
+                                                        <th style={{ border: '1px solid #dee2e6', padding: '6px', textAlign: 'left', fontWeight: 'bold' }}>Elements</th>
+                                                        <th style={{ border: '1px solid #dee2e6', padding: '6px', textAlign: 'left', fontWeight: 'bold' }}>Pin Image</th>
+                                                        <th style={{ border: '1px solid #dee2e6', padding: '6px', textAlign: 'left', fontWeight: 'bold' }}>Photos</th>
+                                                        <th style={{ border: '1px solid #dee2e6', padding: '6px', textAlign: 'left', fontWeight: 'bold' }}>Latitude</th>
+                                                        <th style={{ border: '1px solid #dee2e6', padding: '6px', textAlign: 'left', fontWeight: 'bold' }}>Longitude</th>
+                                                        <th style={{ border: '1px solid #dee2e6', padding: '6px', textAlign: 'left', fontWeight: 'bold' }}>Group</th>
+                                                        <th style={{ border: '1px solid #dee2e6', padding: '6px', textAlign: 'left', fontWeight: 'bold' }}>Image Link</th>
+                                                        <th style={{ border: '1px solid #dee2e6', padding: '6px', textAlign: 'left', fontWeight: 'bold' }}>Google Maps</th>
+                                                    </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                    {submissions.map((submission, index) => (
+                                                        <tr key={index} style={{ backgroundColor: index % 2 === 0 ? 'white' : '#f8f9fa' }}>
+                                                            <td style={{ border: '1px solid #dee2e6', padding: '4px' }}>{submission.spotData?.name || ''}</td>
+                                                            <td style={{ border: '1px solid #dee2e6', padding: '4px' }}>{submission.spotData?.address || ''}</td>
+                                                            <td style={{ border: '1px solid #dee2e6', padding: '4px' }}>{submission.spotData?.id || ''}</td>
+                                                            <td style={{ border: '1px solid #dee2e6', padding: '4px' }}>{submission.spotData?.builder || ''}</td>
+                                                            <td style={{ border: '1px solid #dee2e6', padding: '4px' }}>{submission.spotData?.sqft || ''}</td>
+                                                            <td style={{ border: '1px solid #dee2e6', padding: '4px' }}>{submission.spotData?.lights || ''}</td>
+                                                            <td style={{ border: '1px solid #dee2e6', padding: '4px' }}>{submission.spotData?.covered || ''}</td>
+                                                            <td style={{ border: '1px solid #dee2e6', padding: '4px' }}>
+                                                                {submission.spotData?.url ? (
+                                                                    <a href={submission.spotData.url} target="_blank" rel="noopener noreferrer" style={{ color: '#007cba' }}>
+                                                                        {submission.spotData.url.length > 20 ? submission.spotData.url.substring(0, 20) + '...' : submission.spotData.url}
+                                                                    </a>
+                                                                ) : ''}
+                                                            </td>
+                                                            <td style={{ border: '1px solid #dee2e6', padding: '4px' }}>{submission.spotData?.elements || ''}</td>
+                                                            <td style={{ border: '1px solid #dee2e6', padding: '4px' }}>{submission.spotData?.pinimage || ''}</td>
+                                                            <td style={{ border: '1px solid #dee2e6', padding: '4px' }}>{submission.originalFileName || ''}</td>
+                                                            <td style={{ border: '1px solid #dee2e6', padding: '4px' }}>
+                                                                {submission.coordinates?.latitude || submission.spotData?.latitude || ''}
+                                                            </td>
+                                                            <td style={{ border: '1px solid #dee2e6', padding: '4px' }}>
+                                                                {submission.coordinates?.longitude || submission.spotData?.longitude || ''}
+                                                            </td>
+                                                            <td style={{ border: '1px solid #dee2e6', padding: '4px' }}>{submission.spotData?.group || ''}</td>
+                                                            <td style={{ border: '1px solid #dee2e6', padding: '4px' }}>
+                                                                {submission.imageUrl ? (
+                                                                    <a href={submission.imageUrl} target="_blank" rel="noopener noreferrer" style={{ color: '#007cba' }}>
+                                                                        View
+                                                                    </a>
+                                                                ) : ''}
+                                                            </td>
+                                                            <td style={{ border: '1px solid #dee2e6', padding: '4px' }}>
+                                                                {(submission.coordinates?.googleMapsUrl ||
+                                                                    (submission.coordinates?.latitude && submission.coordinates?.longitude &&
+                                                                        `https://www.google.com/maps?q=${submission.coordinates.latitude},${submission.coordinates.longitude}`)) ? (
+                                                                    <a
+                                                                        href={submission.coordinates?.googleMapsUrl ||
+                                                                        `https://www.google.com/maps?q=${submission.coordinates.latitude},${submission.coordinates.longitude}`}
+                                                                        target="_blank"
+                                                                        rel="noopener noreferrer"
+                                                                        style={{ color: '#007cba' }}
+                                                                    >
+                                                                        Map
+                                                                    </a>
+                                                                ) : ''}
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+
+                                        {/* Mobile Cards */}
+                                        <div className="mobile-cards" style={{ display: 'none' }}>
+                                            {submissions.map((submission, index) => (
+                                                <div key={index} style={{
+                                                    backgroundColor: 'white',
+                                                    border: '1px solid #dee2e6',
+                                                    borderRadius: '4px',
+                                                    padding: '12px',
+                                                    marginBottom: '10px',
+                                                    fontSize: '12px'
+                                                }}>
+                                                    <div style={{ fontWeight: 'bold', marginBottom: '8px', color: '#007cba' }}>
+                                                        {submission.spotData?.name || 'Unnamed Spot'}
+                                                    </div>
+                                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                                                        <div><strong>Address:</strong> {submission.spotData?.address || 'N/A'}</div>
+                                                        <div><strong>ID:</strong> {submission.spotData?.id || 'N/A'}</div>
+                                                        <div><strong>Builder:</strong> {submission.spotData?.builder || 'N/A'}</div>
+                                                        <div><strong>Elements:</strong> {submission.spotData?.elements || 'N/A'}</div>
+                                                        <div><strong>Lights:</strong> {submission.spotData?.lights || 'N/A'}</div>
+                                                        <div><strong>Covered:</strong> {submission.spotData?.covered || 'N/A'}</div>
+                                                        <div style={{ gridColumn: '1 / -1' }}><strong>Photo:</strong> {submission.originalFileName || 'N/A'}</div>
+                                                        <div style={{ gridColumn: '1 / -1' }}>
+                                                            <strong>Links:</strong>
+                                                            {submission.imageUrl && (
+                                                                <a href={submission.imageUrl} target="_blank" rel="noopener noreferrer" style={{ color: '#007cba', marginLeft: '8px' }}>
+                                                                    View Image
+                                                                </a>
+                                                            )}
+                                                            {(submission.coordinates?.latitude && submission.coordinates?.longitude) && (
+                                                                <a
+                                                                    href={`https://www.google.com/maps?q=${submission.coordinates.latitude},${submission.coordinates.longitude}`}
+                                                                    target="_blank"
+                                                                    rel="noopener noreferrer"
+                                                                    style={{ color: '#007cba', marginLeft: '8px' }}
+                                                                >
+                                                                    Maps
+                                                                </a>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                <div style={{
+                                    marginTop: '15px',
+                                    padding: '10px',
+                                    backgroundColor: 'white',
+                                    borderRadius: '4px',
+                                    fontSize: '11px',
+                                    color: '#666'
+                                }}>
+                                    <strong>Note:</strong> Click "Copy to Clipboard" to copy all data in tab-separated format that can be pasted directly into Excel or Google Sheets.
+                                    The data will include headers and be properly formatted for spreadsheet import.
+                                </div>
+                            </div>
+                        )}
+                    </div>
                 </div>
             </form>
         </>
