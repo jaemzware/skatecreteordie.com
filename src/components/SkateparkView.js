@@ -11,9 +11,12 @@ function SkateparkView(props) {
                 <h3 className="park-name">
                     <a href={`?parkId=${props.value.id}`}>{props.value.name}</a>
                 </h3>
-                {props.value.builder && (
-                    <span className="park-builder">Built by {props.value.builder}</span>
-                )}
+                <div className="park-header-meta">
+                    <span className="park-id">ID: {props.value.id}</span>
+                    {props.value.builder && (
+                        <span className="park-builder">Built by {props.value.builder}</span>
+                    )}
+                </div>
             </div>
 
             {/* Main info grid */}
@@ -89,7 +92,6 @@ function SkateparkView(props) {
             <details className="park-raw-data">
                 <summary>Technical Details</summary>
                 <div className="raw-data-grid">
-                    <div><strong>ID:</strong> {props.value.id}</div>
                     <div><strong>Lat:</strong> {props.value.latitude}</div>
                     <div><strong>Long:</strong> {props.value.longitude}</div>
                     <div><strong>Group:</strong> {props.value.group}</div>

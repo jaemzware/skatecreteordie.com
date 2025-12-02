@@ -42,13 +42,12 @@ function SkateparkListing(props) {
         return groupedParks
             .map(group => ({
                 ...group,
-                parks: group.parks.filter(park =>
-                    park.name?.toLowerCase().includes(lowerSearch) ||
-                    park.address?.toLowerCase().includes(lowerSearch) ||
-                    park.builder?.toLowerCase().includes(lowerSearch) ||
-                    park.elements?.toLowerCase().includes(lowerSearch) ||
-                    park.group?.toLowerCase().includes(lowerSearch)
-                )
+                parks: group.parks.filter(park => {
+                    // Search all string fields in the record
+                    return Object.values(park).some(value =>
+                        value && String(value).toLowerCase().includes(lowerSearch)
+                    );
+                })
             }))
             .filter(group => group.parks.length > 0);
     }, [groupedParks, searchTerm]);
@@ -96,7 +95,7 @@ function SkateparkListing(props) {
                     <input
                         type="text"
                         className="search-input"
-                        placeholder="Search parks by name, address, builder..."
+                        placeholder="Search all fields..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                     />
