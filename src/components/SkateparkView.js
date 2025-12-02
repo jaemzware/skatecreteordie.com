@@ -78,7 +78,10 @@ function SkateparkView(props) {
 
             {/* Action links */}
             <div className="park-actions">
-                <a href={geocoordinatelink} className="action-btn primary" target="_blank" rel="noopener noreferrer">
+                <a href={`?parkId=${props.value.id}`} className="action-btn primary">
+                    View on Map
+                </a>
+                <a href={geocoordinatelink} className="action-btn secondary" target="_blank" rel="noopener noreferrer">
                     Get Directions
                 </a>
                 {props.value.url && (
