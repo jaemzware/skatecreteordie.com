@@ -1,10 +1,18 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import '../App.css';
 import SkateparkView from "./SkateparkView";
 
 function SkateparkListing(props) {
     const [expandedGroups, setExpandedGroups] = useState(new Set());
     const [searchTerm, setSearchTerm] = useState('');
+    const [manuallyToggledDuringSearch, setManuallyToggledDuringSearch] = useState(new Set());
+
+    // Reset manual toggles when search is cleared
+    useEffect(() => {
+        if (!searchTerm.trim()) {
+            setManuallyToggledDuringSearch(new Set());
+        }
+    }, [searchTerm]);
 
     // Group parks and sort
     const groupedParks = useMemo(() => {
@@ -52,29 +60,47 @@ function SkateparkListing(props) {
             .filter(group => group.parks.length > 0);
     }, [groupedParks, searchTerm]);
 
-    // Auto-expand groups when searching
+    // Auto-expand groups when searching, but respect manual toggles
     const effectiveExpandedGroups = useMemo(() => {
         if (searchTerm.trim()) {
-            // When searching, auto-expand all matching groups
-            return new Set(filteredGroups.map(g => g.name));
+            // When searching, auto-expand all matching groups except manually collapsed ones
+            const autoExpanded = new Set(filteredGroups.map(g => g.name));
+            // Remove groups that were manually collapsed during this search
+            manuallyToggledDuringSearch.forEach(groupName => {
+                if (autoExpanded.has(groupName)) {
+                    autoExpanded.delete(groupName);
+                } else {
+                    autoExpanded.add(groupName);
+                }
+            });
+            return autoExpanded;
         }
         return expandedGroups;
-    }, [searchTerm, filteredGroups, expandedGroups]);
+    }, [searchTerm, filteredGroups, expandedGroups, manuallyToggledDuringSearch]);
 
     const toggleGroup = (groupName) => {
         if (searchTerm.trim()) {
-            // Don't allow manual toggle while searching
-            return;
+            // Track manual toggles during search
+            setManuallyToggledDuringSearch(prev => {
+                const next = new Set(prev);
+                if (next.has(groupName)) {
+                    next.delete(groupName);
+                } else {
+                    next.add(groupName);
+                }
+                return next;
+            });
+        } else {
+            setExpandedGroups(prev => {
+                const next = new Set(prev);
+                if (next.has(groupName)) {
+                    next.delete(groupName);
+                } else {
+                    next.add(groupName);
+                }
+                return next;
+            });
         }
-        setExpandedGroups(prev => {
-            const next = new Set(prev);
-            if (next.has(groupName)) {
-                next.delete(groupName);
-            } else {
-                next.add(groupName);
-            }
-            return next;
-        });
     };
 
     const expandAll = () => {
