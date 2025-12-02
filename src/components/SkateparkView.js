@@ -1,82 +1,102 @@
 import '../App.css';
 
-function SkateparkView(props){
-    let geocoordinatelink = "https://www.google.com/search?q=" + props.value.latitude + "%2C" + props.value.longitude;
+function SkateparkView(props) {
+    const geocoordinatelink = "https://www.google.com/search?q=" + props.value.latitude + "%2C" + props.value.longitude;
     const parkId = props.value.id;
+
     return (
-        <>
-            <p>
-                <form>
-                    <label htmlFor={`name-${parkId}`}>name:</label>
-                    <span id={`name-${parkId}`}>{props.value.name}</span>
-                    <br />
-                    <label htmlFor={`address-${parkId}`}>address:</label>
-                    <span id={`address-${parkId}`}>{props.value.address}</span>
-                    <br />
-                    <label htmlFor={`id-${parkId}`}>id:</label>
-                    <span id={`id-${parkId}`}>{props.value.id}</span>
+        <div className="park-card">
+            {/* Header with name and link */}
+            <div className="park-header">
+                <h3 className="park-name">
                     <a href={`?parkId=${props.value.id}`}>{props.value.name}</a>
-                    <br />
-                    <label htmlFor={`builder-${parkId}`}>builder:</label>
-                    <span id={`builder-${parkId}`}>{props.value.builder}</span>
-                    <br />
-                    <label htmlFor={`sqft-${parkId}`}>sqft:</label>
-                    <span id={`sqft-${parkId}`}>{props.value.sqft}</span>
-                    <br />
-                    <label htmlFor={`lights-${parkId}`}>lights:</label>
-                    <span id={`lights-${parkId}`}>{props.value.lights}</span>
-                    <br />
-                    <label htmlFor={`covered-${parkId}`}>covered:</label>
-                    <span id={`covered-${parkId}`}>{props.value.covered}</span>
-                    <br />
-                    <label htmlFor={`url-${parkId}`}>url:</label>
-                    <span id={`url-${parkId}`}><a target={"_blank"} href={props.value.url}>{props.value.url}</a></span>
-                    <br />
-                    <label htmlFor={`elements-${parkId}`}>elements:</label>
-                    <span id={`elements-${parkId}`}>{props.value.elements}</span>
-                    <br />
-                    <label htmlFor={`pinimage-${parkId}`}>pinimage:</label>
-                    <span id={`pinimage-${parkId}`}>{props.value.pinimage}</span>
-                    <br />
-                    <label htmlFor={`photos-${parkId}`}>photos:</label>
-                    <span id={`photos-${parkId}`}>{props.value.photos}</span>
-                    <br />
-                    <div className="thumbnail-row">
-                        {props.value.photos && props.value.photos.split(' ').map((photo, index) => {
-                            // Check if the photo already starts with "http://" or "https://"
+                </h3>
+                {props.value.builder && (
+                    <span className="park-builder">Built by {props.value.builder}</span>
+                )}
+            </div>
+
+            {/* Main info grid */}
+            <div className="park-details">
+                {props.value.address && (
+                    <div className="park-detail-item">
+                        <span className="detail-icon">📍</span>
+                        <span className="detail-text">{props.value.address}</span>
+                    </div>
+                )}
+
+                <div className="park-meta">
+                    {props.value.sqft && (
+                        <span className="meta-tag">
+                            <strong>Size:</strong> {props.value.sqft}
+                        </span>
+                    )}
+                    {props.value.lights && props.value.lights !== 'N/A' && (
+                        <span className="meta-tag">
+                            <strong>Lights:</strong> {props.value.lights}
+                        </span>
+                    )}
+                    {props.value.covered && props.value.covered !== 'N/A' && (
+                        <span className="meta-tag">
+                            <strong>Covered:</strong> {props.value.covered}
+                        </span>
+                    )}
+                </div>
+
+                {props.value.elements && (
+                    <div className="park-elements">
+                        <p>{props.value.elements}</p>
+                    </div>
+                )}
+            </div>
+
+            {/* Photos */}
+            {props.value.photos && (
+                <div className="park-photos">
+                    <div className="photo-grid">
+                        {props.value.photos.split(' ').map((photo, index) => {
                             const isFullUrl = photo.startsWith('http://') || photo.startsWith('https://');
-
-                            // Construct the URL based on the condition
                             const photoUrl = isFullUrl ? photo : `${process.env.REACT_APP_IMAGE_SERVER_URL}${photo}`;
-
                             return (
                                 <a
                                     key={index}
                                     href={photoUrl}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="thumbnail-link"
+                                    className="photo-thumb-link"
                                 >
-                                    <span>{photoUrl}</span>
+                                    <span className="photo-filename">{photo.split('/').pop()}</span>
                                 </a>
                             );
                         })}
                     </div>
-                    <br />
-                    <label htmlFor={`latitude-${parkId}`}>latitude:</label>
-                    <span id={`latitude-${parkId}`}>{props.value.latitude}</span>
-                    <br />
-                    <label htmlFor={`longitude-${parkId}`}>longitude:</label>
-                    <span id={`longitude-${parkId}`}>{props.value.longitude}</span>
-                    <br />
-                    <label htmlFor={`group-${parkId}`}>group:</label>
-                    <span id={`group-${parkId}`}>{props.value.group}</span>
-                    <br />
-                    <a href={geocoordinatelink}>DIRECTIONS</a>
-                    <br />
-                </form>
-            </p>
-        </>
+                </div>
+            )}
+
+            {/* Action links */}
+            <div className="park-actions">
+                <a href={geocoordinatelink} className="action-btn primary" target="_blank" rel="noopener noreferrer">
+                    Get Directions
+                </a>
+                {props.value.url && (
+                    <a href={props.value.url} className="action-btn secondary" target="_blank" rel="noopener noreferrer">
+                        More Info
+                    </a>
+                )}
+            </div>
+
+            {/* Hidden details for reference */}
+            <details className="park-raw-data">
+                <summary>Technical Details</summary>
+                <div className="raw-data-grid">
+                    <div><strong>ID:</strong> {props.value.id}</div>
+                    <div><strong>Lat:</strong> {props.value.latitude}</div>
+                    <div><strong>Long:</strong> {props.value.longitude}</div>
+                    <div><strong>Group:</strong> {props.value.group}</div>
+                    {props.value.pinimage && <div><strong>Pin:</strong> {props.value.pinimage}</div>}
+                </div>
+            </details>
+        </div>
     );
 }
 
