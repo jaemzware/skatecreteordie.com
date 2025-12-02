@@ -702,6 +702,8 @@ input[type="text"] {
   max-width: 1200px;
   margin: 0 auto;
   padding: 10px;
+  box-sizing: border-box;
+  overflow-x: hidden;
 }
 
 .listing-controls {
@@ -841,17 +843,42 @@ input[type="text"] {
 
 /* Mobile responsive for grouped listing */
 @media (max-width: 768px) {
+  .skatepark-listing-container {
+    padding: 5px;
+  }
+
   .listing-controls {
     flex-direction: column;
     align-items: stretch;
+    padding: 10px;
+    gap: 10px;
   }
 
   .search-container {
     min-width: 100%;
+    width: 100%;
+  }
+
+  .search-input {
+    width: 100%;
+    box-sizing: border-box;
   }
 
   .expand-controls {
     justify-content: center;
+    width: 100%;
+  }
+
+  .expand-btn,
+  .collapse-btn {
+    flex: 1;
+    padding: 8px 12px;
+    font-size: 13px;
+  }
+
+  .results-summary {
+    padding: 8px 10px;
+    font-size: 13px;
   }
 
   .group-header {
@@ -862,6 +889,16 @@ input[type="text"] {
   .expand-icon {
     width: 16px;
     margin-right: 8px;
+  }
+
+  #skateparks {
+    width: 100%;
+    table-layout: fixed;
+  }
+
+  #skateparks td {
+    word-wrap: break-word;
+    overflow-wrap: break-word;
   }
 }
 
@@ -1087,30 +1124,89 @@ input[type="text"] {
 /* Mobile responsive for park cards */
 @media (max-width: 768px) {
   .park-card {
-    padding: 16px;
+    padding: 12px;
     border-radius: 6px;
+    margin: 5px 0;
+    overflow: hidden;
+  }
+
+  .park-header {
+    margin-bottom: 12px;
+    padding-bottom: 10px;
   }
 
   .park-name {
-    font-size: 1.1rem;
+    font-size: 1rem;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
   }
 
-  .park-meta {
+  .park-name a {
+    word-break: break-word;
+  }
+
+  .park-header-meta {
+    flex-wrap: wrap;
     gap: 8px;
   }
 
-  .meta-tag {
-    padding: 4px 10px;
+  .park-id {
+    font-size: 0.7rem;
+  }
+
+  .park-builder {
     font-size: 0.8rem;
+  }
+
+  .park-details {
+    margin-bottom: 12px;
+  }
+
+  .park-detail-item {
+    font-size: 0.85rem;
+  }
+
+  .detail-text {
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+  }
+
+  .park-meta {
+    gap: 6px;
+  }
+
+  .meta-tag {
+    padding: 4px 8px;
+    font-size: 0.75rem;
+  }
+
+  .park-elements {
+    padding: 10px 12px;
+    margin: 10px 0;
+  }
+
+  .park-elements p {
+    font-size: 0.85rem;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
   }
 
   .park-actions {
     flex-direction: column;
+    gap: 8px;
+    margin-top: 12px;
+    padding-top: 12px;
   }
 
   .action-btn {
     width: 100%;
     text-align: center;
+    padding: 8px 16px;
+    font-size: 0.85rem;
+  }
+
+  .park-photos {
+    margin: 12px 0;
   }
 
   .photo-grid {
@@ -1119,10 +1215,16 @@ input[type="text"] {
 
   .photo-thumb-link {
     padding: 4px 8px;
-    font-size: 0.75rem;
+    font-size: 0.7rem;
+  }
+
+  .photo-filename {
+    max-width: 80px;
   }
 
   .raw-data-grid {
     grid-template-columns: 1fr 1fr;
+    padding: 10px;
+    font-size: 0.75rem;
   }
 }
