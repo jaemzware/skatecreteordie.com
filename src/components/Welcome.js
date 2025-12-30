@@ -1,7 +1,40 @@
 import '../App.css';
 import AppStoreButtons from "./AppStoreButtons"
+import { useEffect, useRef, useState } from 'react';
 
 function Welcome(props) {
+    const videoRef = useRef(null);
+    const [poster, setPoster] = useState('');
+
+    useEffect(() => {
+        const video = videoRef.current;
+        if (!video) return;
+
+        const captureFrame = () => {
+            // Seek to the 10th frame (assuming 30fps, 10 frames ≈ 0.33 seconds)
+            video.currentTime = 10 / 30;
+        };
+
+        const generatePoster = () => {
+            const canvas = document.createElement('canvas');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            const posterUrl = canvas.toDataURL('image/jpeg');
+            setPoster(posterUrl);
+            video.currentTime = 0; // Reset to start
+        };
+
+        video.addEventListener('loadedmetadata', captureFrame);
+        video.addEventListener('seeked', generatePoster, { once: true });
+
+        return () => {
+            video.removeEventListener('loadedmetadata', captureFrame);
+            video.removeEventListener('seeked', generatePoster);
+        };
+    }, []);
+
     return (
         <div className="welcome-container">
             <a href="#" onClick={() => props.setShowPage("MAP")}>
@@ -34,10 +67,11 @@ function Welcome(props) {
                 </p>
                 <div className="welcome-video-container">
                     <video
+                        ref={videoRef}
                         className="welcome-video"
                         controls
                         preload="metadata"
-                        poster={`${process.env.REACT_APP_IMAGE_SERVER_URL}video-poster.jpg`}
+                        poster={poster}
                     >
                         <source src="https://stuffedanimalwar.com/videos/maiden.mp4" type="video/mp4" />
                         Your browser does not support the video tag.
