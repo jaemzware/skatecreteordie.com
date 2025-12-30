@@ -39,7 +39,7 @@ function Welcome(props) {
                         preload="metadata"
                         poster={`${process.env.REACT_APP_IMAGE_SERVER_URL}video-poster.jpg`}
                     >
-                        <source src="https://skatecreteordie.s3.us-east-005.backblazeb2.com/content/del.mp4" type="video/mp4" />
+                        <source src="https://stuffedanimalwar.com/videos/maiden.mp4" type="video/mp4" />
                         Your browser does not support the video tag.
                     </video>
                 </div>
