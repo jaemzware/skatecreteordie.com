@@ -72,6 +72,7 @@ function Welcome(props) {
                         controls
                         preload="metadata"
                         poster={poster}
+                        crossOrigin="anonymous"
                     >
                         <source src="https://stuffedanimalwar.com/videos/maiden.mp4" type="video/mp4" />
                         Your browser does not support the video tag.
